@@ -1,7 +1,7 @@
 "use client";
 
 /** Discover — map/list toggle, filters, add-place FAB (spec §6.3). */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -16,6 +16,7 @@ import AddPlaceSheet from "@/components/AddPlaceSheet";
 import { EmptyState, KIND_LABELS, Sheet, Spinner } from "@/components/ui";
 import DiscoverDrawer, { PEEK } from "@/components/DiscoverDrawer";
 import { ME_SPAN_M } from "@/lib/map";
+import { readDiscoverView, writeDiscoverView } from "@/lib/discover-view";
 
 // Leaflet touches `window` at import time, so it can't be server-rendered.
 const MapView = dynamic(() => import("@/components/MapView"), {
@@ -84,6 +85,13 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
   const [sort, setSort] = useState<"newest" | "oinks" | "cheap" | "pricey">("newest");
   const [drawerOpen, setDrawerOpen] = useState(false);
   /**
+   * Where this screen was when it was last left. Read into a ref rather than
+   * state: the map needs it the instant it mounts, and a ref takes no part in
+   * hydration — seeding state from storage would have the server render one
+   * set of filters and the client another.
+   */
+  const savedRef = useRef(readDiscoverView());
+  /**
    * Which layout is live. Tailwind can hide the wrong one, but two of these
    * decisions aren't CSS: the pin sheet must not *mount* on a phone (it locks
    * body scroll when it opens, visible or not), and the add button's offset
@@ -106,6 +114,21 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
   useEffect(() => {
     api.me().then(setMe).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const saved = savedRef.current;
+    if (!saved) return;
+    if (saved.visited) setVisited(saved.visited);
+    if (saved.kinds) setKinds(saved.kinds);
+    if (saved.budgets) setBudgets(saved.budgets);
+    if (saved.categories) setCategories(saved.categories);
+    if (saved.sort) setSort(saved.sort);
+  }, []);
+
+  // And put them back as they change, so the next trip out and back keeps them.
+  useEffect(() => {
+    writeDiscoverView({ visited, kinds, budgets, categories, sort });
+  }, [visited, kinds, budgets, categories, sort]);
 
   const load = useCallback(() => {
     api.places().then(setPlaces).catch(() => setPlaces([]));
@@ -337,7 +360,11 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
             <MapView
               places={filtered}
               onSelect={setSelected}
-              onCenterChange={(lat, lng) => setMapCenter({ lat, lng })}
+              initialView={savedRef.current?.center ?? null}
+              onCenterChange={(lat, lng, zoom) => {
+                setMapCenter({ lat, lng });
+                writeDiscoverView({ center: { lat, lng, zoom } });
+              }}
               onBoundsChange={setBounds}
               me={me}
               focusPoint={focusPoint}

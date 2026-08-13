@@ -53,8 +53,13 @@ const DEFAULT_ZOOM = 13;
 type Props = {
   places: PlaceSummary[];
   onSelect: (place: PlaceSummary) => void;
-  /** Fires as the map settles, so search can be biased to the visible area. */
-  onCenterChange?: (lat: number, lng: number) => void;
+  /** Fires as the map settles, so search can be biased to the visible area —
+   *  and so the view can be remembered across a trip to a place page. */
+  onCenterChange?: (lat: number, lng: number, zoom: number) => void;
+  /** Where the map was when you last left this screen. Overrides the opening
+   *  framing entirely: coming back should put you where you were, not where
+   *  you happen to be standing. */
+  initialView?: { lat: number; lng: number; zoom: number } | null;
   /** Also as it settles: what's actually on screen, so the list can show only
    *  the places you're looking at rather than every pin in the country. */
   onBoundsChange?: (b: { minLat: number; minLng: number; maxLat: number; maxLng: number }) => void;
@@ -225,6 +230,7 @@ export default function MapView({
   onSelect,
   onCenterChange,
   onBoundsChange,
+  initialView,
   me,
   focusPoint,
   pickMode = false,
@@ -253,6 +259,9 @@ export default function MapView({
   centerCb.current = onCenterChange;
   const boundsCb = useRef(onBoundsChange);
   boundsCb.current = onBoundsChange;
+  // Read once, at mount: it's the opening position, and re-reading it later
+  // would fight whatever the user has done to the map since.
+  const viewRef = useRef(initialView);
   const pickHandlers = useRef({ pickMode, onPick });
   pickHandlers.current = { pickMode, onPick };
 
@@ -288,7 +297,7 @@ export default function MapView({
       // Kept in a ref so binding once doesn't freeze a stale callback.
       const report = () => {
         const c = map.getCenter();
-        centerCb.current?.(c.lat, c.lng);
+        centerCb.current?.(c.lat, c.lng, map.getZoom());
         // A hidden map has no viewport to report. On a phone the list replaces
         // the map with `display:none`, which collapses the container to 0x0;
         // the resize observer then calls invalidateSize, Leaflet fires moveend,
@@ -309,10 +318,19 @@ export default function MapView({
       map.on("moveend", report);
       report();
 
-      // London is where the map rests when it has nothing better: it's on
-      // screen from the first paint, so a refused or slow location fix needs no
-      // fallback of its own — this is already the fallback.
-      map.fitBounds(LONDON, { padding: [12, 12], animate: false });
+      // Back from a place page: straight to where you were, and nothing else
+      // gets to move the view. `framedRef` is what stops a late location fix
+      // arriving a second later and throwing it away.
+      const remembered = viewRef.current;
+      if (remembered) {
+        framedRef.current = true;
+        map.setView([remembered.lat, remembered.lng], remembered.zoom, { animate: false });
+      } else {
+        // London is where the map rests when it has nothing better: it's on
+        // screen from the first paint, so a refused or slow location fix needs
+        // no fallback of its own — this is already the fallback.
+        map.fitBounds(LONDON, { padding: [12, 12], animate: false });
+      }
 
       // Then, if the browser will say where you are, your own kilometre.
       // Framing every pin instead was the old behaviour and it opened uselessly
