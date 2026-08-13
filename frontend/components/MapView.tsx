@@ -515,11 +515,13 @@ export default function MapView({
         iconAnchor: [30, 57],
       });
 
-      // Under the place pins and untappable: this is orientation, not content,
-      // and it must never sit between a finger and a restaurant.
+      // Over every pin, and untappable. A pin's z comes from how many people
+      // have backed it (voterCount * 1000), so this needs an offset no crowd
+      // can reach; `interactive: false` puts pointer-events off the icon, so
+      // being in front costs nothing — taps still land on the pin underneath.
       meMarkerRef.current = L.marker([myPoint.lat, myPoint.lng], {
         icon,
-        zIndexOffset: -1000,
+        zIndexOffset: 1_000_000,
         interactive: false,
       }).addTo(map);
     })();
