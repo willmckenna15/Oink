@@ -17,6 +17,7 @@ import { ApiError, api } from "@/lib/api";
 import { BUDGETS, Budget } from "@/lib/pig";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import CategoryPicker from "@/components/CategoryPicker";
+import PhotoPicker from "@/components/PhotoPicker";
 import { ErrorNote, KIND_LABELS, Sheet } from "@/components/ui";
 import type { Kind, PlaceCandidate } from "@/lib/types";
 
@@ -64,7 +65,6 @@ export default function AddPlaceSheet({
   const [dishes, setDishes] = useState<string[]>([]);
   const [dishDraft, setDishDraft] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const fileInput = useRef<HTMLInputElement>(null);
   // Survives a failed review step so retrying doesn't add the place twice.
   const createdIdRef = useRef<string | null>(null);
 
@@ -655,24 +655,7 @@ export default function AddPlaceSheet({
             )}
           </div>
 
-          <div className="space-y-2">
-            <p className="font-display text-sm font-bold">photos</p>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-            />
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              className="btn-plain w-full text-sm"
-            >
-              {files.length ? `${files.length} photo${files.length > 1 ? "s" : ""} ready` : "Add photos"}
-            </button>
-          </div>
+          <PhotoPicker files={files} onChange={setFiles} />
         </section>
 
         {error && <ErrorNote message={error} />}

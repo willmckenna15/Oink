@@ -15,6 +15,7 @@ import PhotoViewer, { type ViewerPhoto } from "@/components/PhotoViewer";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import { OinkPig, ShamePig } from "@/components/pigs/ReactionPigs";
 import PhotoCarousel from "@/components/PhotoCarousel";
+import PhotoPicker from "@/components/PhotoPicker";
 import BottomTabBar, { TabBarSpacer } from "@/components/BottomTabBar";
 import { EmptyState, ErrorNote, KIND_LABELS, PageHeader, Sheet, Spinner, timeAgo } from "@/components/ui";
 
@@ -405,7 +406,6 @@ function ReviewSheet({
   const [error, setError] = useState<string | null>(null);
   // Deleting a write-up is destructive and there's no undo, so it asks first.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -498,20 +498,7 @@ function ReviewSheet({
           )}
         </div>
 
-        <div className="space-y-2">
-          <p className="font-display text-sm font-bold">photos</p>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          />
-          <button type="button" onClick={() => fileInput.current?.click()} className="btn-plain w-full text-sm">
-            {files.length ? `${files.length} photo${files.length > 1 ? "s" : ""} ready` : "Add photos"}
-          </button>
-        </div>
+        <PhotoPicker files={files} onChange={setFiles} />
 
         {error && <ErrorNote message={error} />}
 
