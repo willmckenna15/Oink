@@ -14,7 +14,7 @@ import PigAvatar from "@/components/pigs/PigAvatar";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import AddPlaceSheet from "@/components/AddPlaceSheet";
 import { EmptyState, KIND_LABELS, Sheet, Spinner } from "@/components/ui";
-import DiscoverDrawer, { PEEK, type Detent } from "@/components/DiscoverDrawer";
+import DiscoverDrawer, { PEEK } from "@/components/DiscoverDrawer";
 import { ME_SPAN_M } from "@/lib/map";
 import { readDiscoverView, writeDiscoverView } from "@/lib/discover-view";
 
@@ -83,7 +83,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     maxLng: number;
   } | null>(null);
   const [sort, setSort] = useState<"newest" | "oinks" | "cheap" | "pricey">("newest");
-  const [drawerDetent, setDrawerDetent] = useState<Detent>("min");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   /**
    * Where this screen was when it was last left. Read into a ref rather than
    * state: the map needs it the instant it mounts, and a ref takes no part in
@@ -201,25 +201,6 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
       return price(b) - price(a) || byName(a, b);
     });
   }, [inView, sort]);
-
-  /**
-   * The same list, with the tapped pin's place pulled to the front.
-   *
-   * The phone drawer shows its first entry when shut, so this is what puts the
-   * pin you just tapped on screen. It used to be a separate card rendered in
-   * place of the list, but that made opening the drawer a swap of one subtree
-   * for another — every card mounting mid-gesture. One list that reorders
-   * costs nothing to reveal.
-   */
-  const ordered = useMemo(() => {
-    if (!selected) return listed;
-    const i = listed.findIndex((p) => p.id === selected.id);
-    // Panning can leave the selection off screen and out of `listed` entirely;
-    // it's still what you asked to see, so it goes on the front regardless.
-    if (i < 0) return [selected, ...listed];
-    if (i === 0) return listed;
-    return [listed[i], ...listed.slice(0, i), ...listed.slice(i + 1)];
-  }, [listed, selected]);
 
   const ALL_KINDS: Kind[] = useMemo(() => ["restaurant", "bar", "cafe"], []);
 
@@ -487,9 +468,10 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
           dropping a pin, where the map is the only thing that matters. */}
       {places && !pickMode && (
         <DiscoverDrawer
-          detent={drawerDetent}
-          onDetentChange={setDrawerDetent}
-          places={ordered}
+          expanded={drawerOpen}
+          onExpandedChange={setDrawerOpen}
+          peek={selected ?? inView[0] ?? null}
+          places={listed}
           anyMatches={filtered.length > 0}
           sort={sort}
           onSortChange={(v) => setSort(v as typeof sort)}
