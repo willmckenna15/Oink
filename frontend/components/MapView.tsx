@@ -42,12 +42,13 @@ const CLUSTER_RADIUS_PX = 52;
 const PIN_W = 76;
 
 // Central London — a sensible opening view before any places load.
+import { CITY_ZOOM, LONDON, ME_SPAN_M, spanAround } from "@/lib/map";
+
 const DEFAULT_CENTER: [number, number] = [51.5127, -0.1345];
 const DEFAULT_ZOOM = 13;
 
 // Roughly "the city you're standing in" — close enough to read street names,
 // wide enough to take in the places across town.
-const CITY_ZOOM = 13;
 
 type Props = {
   places: PlaceSummary[];
@@ -57,8 +58,10 @@ type Props = {
   /** Also as it settles: what's actually on screen, so the list can show only
    *  the places you're looking at rather than every pin in the country. */
   onBoundsChange?: (b: { minLat: number; minLng: number; maxLat: number; maxLng: number }) => void;
-  /** Set to move the map somewhere — a city picked from search. */
-  focusPoint?: { lat: number; lng: number } | null;
+  /** Set to move the map somewhere. `span` frames that many metres across —
+   *  used for "where I am", where a zoom level would cover twice the ground on
+   *  a tablet as on a phone. Without it the map goes to a city's worth. */
+  focusPoint?: { lat: number; lng: number; span?: number } | null;
   /** The viewer, so "you are here" can be their own pig rather than a dot. */
   me?: User | null;
   /** Enables tap-to-drop-a-pin while adding a new place. */
@@ -244,8 +247,6 @@ export default function MapView({
   // Clusters depend on the current zoom, so re-run the marker effect when it
   // changes; without this, groups stay welded together as you zoom in.
   const [zoomTick, setZoomTick] = useState(0);
-  // Bumped when locating fails, so the pin-framing fallback gets a chance to run.
-  const [locateTick, setLocateTick] = useState(0);
   const [myPoint, setMyPoint] = useState<{ lat: number; lng: number } | null>(null);
   // Kept in a ref so the click handler, bound once, always sees current values.
   const centerCb = useRef(onCenterChange);
@@ -267,6 +268,12 @@ export default function MapView({
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
         zoomControl: false,
+        // Quarter steps rather than whole ones. fitBounds has to floor to a
+        // permitted zoom, so on whole steps "fit London" could land a full
+        // level short and show twice the ground — the Home Counties top and
+        // bottom, London a band through the middle. A quarter is close enough
+        // to fit properly and coarse enough that raster tiles stay sharp.
+        zoomSnap: 0.25,
       });
       // No zoom control — pinch and double-tap are the gestures people actually
       // use on a phone, and the buttons only crowd the corner.
@@ -302,22 +309,26 @@ export default function MapView({
       map.on("moveend", report);
       report();
 
-      // Open on the city you're actually in rather than framing every pin —
-      // the pin bounds can span the country and open uselessly zoomed out.
-      // Claimed immediately so the pin-framing below doesn't race the callback;
-      // released again if locating fails, which lets the old behaviour stand in.
+      // London is where the map rests when it has nothing better: it's on
+      // screen from the first paint, so a refused or slow location fix needs no
+      // fallback of its own — this is already the fallback.
+      map.fitBounds(LONDON, { padding: [12, 12], animate: false });
+
+      // Then, if the browser will say where you are, your own kilometre.
+      // Framing every pin instead was the old behaviour and it opened uselessly
+      // wide, since the pins can span the country.
       if (typeof navigator !== "undefined" && navigator.geolocation) {
-        framedRef.current = true;
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            if (cancelled || pickHandlers.current.pickMode) return;
-            map.setView([pos.coords.latitude, pos.coords.longitude], CITY_ZOOM, { animate: false });
+            // Something deliberate may have happened while we waited — a city
+            // searched, a pin dropped. A late fix must not yank the view back.
+            if (cancelled || framedRef.current || pickHandlers.current.pickMode) return;
+            framedRef.current = true;
+            map.fitBounds(spanAround(pos.coords.latitude, pos.coords.longitude, ME_SPAN_M), {
+              animate: false,
+            });
           },
-          () => {
-            if (cancelled) return;
-            framedRef.current = false;
-            setLocateTick((t) => t + 1);
-          },
+          () => {},
           { timeout: 8000, maximumAge: 5 * 60 * 1000 }
         );
       }
@@ -449,16 +460,8 @@ export default function MapView({
         );
       });
 
-      // Fallback when the browser won't share a location: frame the pins once.
-      // Only ever once — re-framing on every filter change yanks the view around
-      // while the user is browsing.
-      if (places.length && !framedRef.current && !pickHandlers.current.pickMode) {
-        framedRef.current = true;
-        const bounds = L.latLngBounds(places.map((p) => [p.lat, p.lng] as [number, number]));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: false });
-      }
     })();
-  }, [places, onSelect, ready, zoomTick, locateTick]);
+  }, [places, onSelect, ready, zoomTick]);
 
   // Jump to a city picked from search. Claims the framing slot so a late
   // geolocation fix or the pin-fit fallback can't yank the view back.
@@ -466,7 +469,11 @@ export default function MapView({
     const map = mapRef.current;
     if (!map || !ready || !focusPoint) return;
     framedRef.current = true;
-    map.setView([focusPoint.lat, focusPoint.lng], CITY_ZOOM);
+    if (focusPoint.span) {
+      map.fitBounds(spanAround(focusPoint.lat, focusPoint.lng, focusPoint.span));
+    } else {
+      map.setView([focusPoint.lat, focusPoint.lng], CITY_ZOOM);
+    }
   }, [focusPoint, ready]);
 
   /**

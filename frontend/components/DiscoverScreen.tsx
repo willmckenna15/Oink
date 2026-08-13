@@ -15,6 +15,7 @@ import { BudgetTag } from "@/components/pigs/PricePig";
 import AddPlaceSheet from "@/components/AddPlaceSheet";
 import { EmptyState, KIND_LABELS, Sheet, Spinner } from "@/components/ui";
 import DiscoverDrawer, { PEEK } from "@/components/DiscoverDrawer";
+import { ME_SPAN_M } from "@/lib/map";
 
 // Leaflet touches `window` at import time, so it can't be server-rendered.
 const MapView = dynamic(() => import("@/components/MapView"), {
@@ -59,7 +60,12 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
   const [cityQuery, setCityQuery] = useState("");
   const [cityBusy, setCityBusy] = useState(false);
   const [cityError, setCityError] = useState<string | null>(null);
-  const [focusPoint, setFocusPoint] = useState<{ lat: number; lng: number } | null>(null);
+  // `span` frames that many metres across rather than jumping to a zoom level.
+  const [focusPoint, setFocusPoint] = useState<{
+    lat: number;
+    lng: number;
+    span?: number;
+  } | null>(null);
 
   /**
    * Been / not been. The map's other filters narrow what kind of place you're
@@ -226,7 +232,11 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     setCityError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setFocusPoint({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setFocusPoint({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          span: ME_SPAN_M,
+        });
         setCityBusy(false);
       },
       () => {
