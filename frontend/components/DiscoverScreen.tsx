@@ -80,6 +80,12 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
+  /** The viewer, so the map can put their own pig where they're standing. */
+  const [me, setMe] = useState<User | null>(null);
+  useEffect(() => {
+    api.me().then(setMe).catch(() => {});
+  }, []);
+
   const load = useCallback(() => {
     api.places().then(setPlaces).catch(() => setPlaces([]));
   }, []);
@@ -317,6 +323,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
               onSelect={setSelected}
               onCenterChange={(lat, lng) => setMapCenter({ lat, lng })}
               onBoundsChange={setBounds}
+              me={me}
               focusPoint={focusPoint}
               pickMode={pickMode}
               pickedPoint={pickedPoint}

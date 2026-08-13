@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Map as LeafletMap, Marker } from "leaflet";
-import type { PlaceSummary } from "@/lib/types";
+import type { PlaceSummary, User } from "@/lib/types";
 import PigAvatar from "@/components/pigs/PigAvatar";
 import { ShamePig } from "@/components/pigs/ReactionPigs";
 // Safe as a static import — this component is only loaded via next/dynamic
@@ -59,6 +59,8 @@ type Props = {
   onBoundsChange?: (b: { minLat: number; minLng: number; maxLat: number; maxLng: number }) => void;
   /** Set to move the map somewhere — a city picked from search. */
   focusPoint?: { lat: number; lng: number } | null;
+  /** The viewer, so "you are here" can be their own pig rather than a dot. */
+  me?: User | null;
   /** Enables tap-to-drop-a-pin while adding a new place. */
   pickMode?: boolean;
   onPick?: (lat: number, lng: number) => void;
@@ -220,6 +222,7 @@ export default function MapView({
   onSelect,
   onCenterChange,
   onBoundsChange,
+  me,
   focusPoint,
   pickMode = false,
   onPick,
@@ -230,6 +233,7 @@ export default function MapView({
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const pickMarkerRef = useRef<Marker | null>(null);
+  const meMarkerRef = useRef<Marker | null>(null);
   const framedRef = useRef(false);
   // Leaflet is imported dynamically, so the map exists only after an async
   // tick. The marker effects key off this so they re-run once it's actually
@@ -242,6 +246,7 @@ export default function MapView({
   const [zoomTick, setZoomTick] = useState(0);
   // Bumped when locating fails, so the pin-framing fallback gets a chance to run.
   const [locateTick, setLocateTick] = useState(0);
+  const [myPoint, setMyPoint] = useState<{ lat: number; lng: number } | null>(null);
   // Kept in a ref so the click handler, bound once, always sees current values.
   const centerCb = useRef(onCenterChange);
   centerCb.current = onCenterChange;
@@ -454,6 +459,66 @@ export default function MapView({
     framedRef.current = true;
     map.setView([focusPoint.lat, focusPoint.lng], CITY_ZOOM);
   }, [focusPoint, ready]);
+
+  /**
+   * Where you are, followed rather than sampled once — the map's init already
+   * takes a fix to choose the opening city, but that's a single reading and
+   * this marker has to keep up as you walk.
+   */
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    const watch = navigator.geolocation.watchPosition(
+      (pos) => setMyPoint({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      // Silent: the map already surfaces a locate failure through its own
+      // button, and a second complaint about it helps nobody.
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 10_000 }
+    );
+    return () => navigator.geolocation.clearWatch(watch);
+  }, []);
+
+  // You are here — your own pig, in a ring, with a soft halo for the fix.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+
+    (async () => {
+      const L = (await import("leaflet")).default;
+      meMarkerRef.current?.remove();
+      meMarkerRef.current = null;
+      if (!myPoint) return;
+
+      const face = renderToStaticMarkup(
+        <PigAvatar
+          config={me?.pig_avatar_config}
+          placesLogged={me?.places_logged ?? 0}
+          lastLoggedAt={me?.last_logged_at}
+          size={38}
+          variant="face"
+          bare
+        />
+      );
+      const icon = L.divIcon({
+        className: "oink-me",
+        html: `<div style="position:relative;width:54px;height:54px">
+                 <div style="position:absolute;inset:0;border-radius:50%;background:rgba(145,78,86,.18)"></div>
+                 <div style="position:absolute;left:7px;top:7px;width:40px;height:40px;border-radius:50%;
+                             overflow:hidden;border:3px solid #914E56;background:#FFFDF6;
+                             box-shadow:0 2px 8px rgba(77,48,63,.32);
+                             display:flex;align-items:center;justify-content:center">${face}</div>
+               </div>`,
+        iconSize: [54, 54],
+        iconAnchor: [27, 27],
+      });
+      // Under the place pins and untappable: this is orientation, not content,
+      // and it must never sit between a finger and a restaurant.
+      meMarkerRef.current = L.marker([myPoint.lat, myPoint.lng], {
+        icon,
+        zIndexOffset: -1000,
+        interactive: false,
+      }).addTo(map);
+    })();
+  }, [myPoint, ready, me]);
 
   // The dropped pin while adding a place
   useEffect(() => {
