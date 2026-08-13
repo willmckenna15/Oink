@@ -154,10 +154,11 @@ export default function FeedScreen({ initialItems }: { initialItems: FeedItem[] 
 
   return (
     <>
-      <PageHeader title="oink" />
-
       {/* Back to the top of the feed — appears only once you're deep enough in
-          for the scroll back to be a chore. */}
+          for the scroll back to be a chore. Stays outside the pull, both
+          because a `fixed` child of a transformed element would be captured by
+          it, and because it only ever shows when you're scrolled too far down
+          to pull anyway. */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         aria-label="back to the top"
@@ -174,6 +175,10 @@ export default function FeedScreen({ initialItems }: { initialItems: FeedItem[] 
       </button>
 
       <PullToRefresh onRefresh={refresh}>
+        {/* Inside the pull, so the wordmark travels with the feed rather than
+            the cards sliding out from under it. */}
+        <PageHeader title="oink" />
+
         {/* One column on a phone; two on a laptop, where a single 480px strip
             of cards down the middle of a 1400px screen is mostly wallpaper.
             Grid rather than CSS columns: columns fill top-to-bottom, which

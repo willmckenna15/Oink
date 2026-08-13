@@ -12,9 +12,12 @@
   body {
     @apply bg-oat text-ink font-body;
     -webkit-tap-highlight-color: transparent;
-    /* The feed runs its own pull-to-refresh, so the browser's native one must
-       stay out of the way — otherwise a pull at the top fires both. */
-    overscroll-behavior-y: contain;
+    /* The feed runs its own pull-to-refresh, so the browser's must stay out of
+       the way entirely — `none`, not `contain`. `contain` only stops Chrome's
+       native refresh and scroll chaining; Safari still rubber-bands the whole
+       document on top of our gesture, and two pulls at different rates is what
+       made the feed feel like it was fighting itself. Needs iOS 16.4+. */
+    overscroll-behavior-y: none;
   }
 
   h1,

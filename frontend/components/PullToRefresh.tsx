@@ -15,16 +15,31 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Pull past this and letting go refreshes. */
-const TRIGGER = 68;
-/** Rubber-band ceiling — the page can't be dragged off screen. */
-const MAX = 104;
+/** Pull past this and letting go refreshes. ~115px of finger travel. */
+const TRIGGER = 60;
+/** Rubber-band ceiling. The page approaches this and never reaches it, so
+ *  there's no point where the pull visibly stops dead against a clamp. */
+const MAX = 110;
 /** Where the indicator parks while the request is in flight. */
 const HOLD = 48;
-/** Fraction of the finger's travel the content actually moves. */
-const RESISTANCE = 0.55;
+/** How much of the first pixel of travel the page takes. It gives up more of
+ *  each subsequent pixel — see `damp`. */
+const RESISTANCE = 0.75;
 /** A beat of spinner after a fast response, so the refresh reads as one. */
 const SETTLE_MS = 320;
+
+/**
+ * Finger travel → how far the page actually moves.
+ *
+ * A flat fraction of the travel was the tell that this wasn't the browser's
+ * own bounce: real elastic scrolling gives up ground more grudgingly the
+ * further you pull, then stops against a ceiling it never quite reaches. This
+ * curve starts at RESISTANCE and decays towards MAX, so there's no clamp to
+ * hit — the pull just runs out of give.
+ */
+function damp(dy: number) {
+  return MAX * (1 - Math.exp((-dy * RESISTANCE) / MAX));
+}
 
 export default function PullToRefresh({
   onRefresh,
@@ -129,7 +144,7 @@ export default function PullToRefresh({
       }
       e.preventDefault();
       setDragging(true);
-      setPullTo(Math.min(MAX, dy * RESISTANCE));
+      setPullTo(damp(dy));
     };
 
     const onEnd = () => {
@@ -160,12 +175,14 @@ export default function PullToRefresh({
 
   return (
     <div ref={host} className="relative">
-      {/* Rides just above the content's top edge, so it's revealed by the pull
-          rather than fading in over the feed. The sticky header outranks it,
-          which is what keeps it hidden at rest. */}
+      {/* Sits in the strip the pull opens up at the top of the screen, above
+          the header that's travelling down with the feed. A sibling of the
+          moving content rather than a child, so the transform below doesn't
+          carry it along and double its travel. Parked off the top at rest, and
+          transparent there besides. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
+        className="pointer-events-none absolute inset-x-0 top-0 z-[901] flex justify-center"
         style={{ transform: `translateY(${pull - 44}px)`, opacity: progress, transition: glide }}
       >
         <div
