@@ -245,7 +245,10 @@ def update_restaurant(
     place = db.get(Restaurant, restaurant_id)
     if not place:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such place")
-    if place.created_by and place.created_by != viewer.id:
+    # Only whoever put it on the map. A place with no recorded creator can't be
+    # edited by anyone: "anyone may edit it" is the wrong way to read a missing
+    # owner, and there is nobody it would be right to hand it to.
+    if place.created_by != viewer.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only whoever added this place can edit it",

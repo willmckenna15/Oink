@@ -139,6 +139,24 @@ export const api = {
     postcode?: string | null;
   }) => request<PlaceDetail>("/restaurants", { method: "POST", body: JSON.stringify(payload) }),
 
+  /** Edit a place. The API refuses anyone but whoever added it. */
+  updatePlace: (
+    placeId: string,
+    payload: {
+      name?: string;
+      kind?: string;
+      category?: string[];
+      budget?: Budget;
+      address?: string | null;
+      city?: string | null;
+      area?: string | null;
+      postcode?: string | null;
+    }
+  ) => request<PlaceDetail>(`/restaurants/${placeId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }),
+
   parseMapsLink: (url: string) =>
     request<ParsedLink>("/places/parse-google-maps-link", {
       method: "POST",

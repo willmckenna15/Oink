@@ -16,6 +16,7 @@ import { BudgetTag } from "@/components/pigs/PricePig";
 import { OinkPig, ShamePig } from "@/components/pigs/ReactionPigs";
 import PhotoCarousel from "@/components/PhotoCarousel";
 import PhotoPicker from "@/components/PhotoPicker";
+import EditPlaceSheet from "@/components/EditPlaceSheet";
 import BottomTabBar, { TabBarSpacer } from "@/components/BottomTabBar";
 import { EmptyState, ErrorNote, KIND_LABELS, PageHeader, Sheet, Spinner, timeAgo } from "@/components/ui";
 
@@ -30,6 +31,7 @@ export default function PlacePage({ params }: { params: Promise<{ id: string }> 
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   // Shaming asks why, and won't take no for an answer.
+  const [editOpen, setEditOpen] = useState(false);
   const [shameOpen, setShameOpen] = useState(false);
   const [shameWhy, setShameWhy] = useState("");
   const [landedOnExisting, setLandedOnExisting] = useState(false);
@@ -115,6 +117,12 @@ export default function PlacePage({ params }: { params: Promise<{ id: string }> 
             <p className="text-sm text-ink-soft">
               {place.address ?? [place.area, place.city].filter(Boolean).join(", ")}
             </p>
+          )}
+
+          {place.added_by_me && (
+            <button onClick={() => setEditOpen(true)} className="btn-plain w-full text-sm">
+              Edit this place
+            </button>
           )}
 
           {place.google_maps_url && (
@@ -326,6 +334,13 @@ export default function PlacePage({ params }: { params: Promise<{ id: string }> 
           </button>
         </div>
       </Sheet>
+
+      <EditPlaceSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        place={place}
+        onSaved={setPlace}
+      />
 
       <TabBarSpacer />
       <BottomTabBar />
