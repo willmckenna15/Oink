@@ -24,8 +24,10 @@ import type { PlaceSummary } from "@/lib/types";
 import PlaceListCard from "@/components/PlaceListCard";
 import { EmptyState } from "@/components/ui";
 
-/** How tall the drawer is when shut: the handle strip and one card. */
-export const PEEK = 162;
+/** How tall the drawer is when shut: the handle strip and one card, measured
+ *  rather than guessed — a peek taller than its contents is a band of empty
+ *  oat where the map should be. */
+export const PEEK = 134;
 const HEIGHT = "68vh";
 /** Past this much travel a gesture is a drag; under it, it was a tap. */
 const DRAG = 36;
