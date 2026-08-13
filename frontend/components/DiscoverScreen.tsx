@@ -14,7 +14,7 @@ import PigAvatar from "@/components/pigs/PigAvatar";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import AddPlaceSheet from "@/components/AddPlaceSheet";
 import { EmptyState, KIND_LABELS, Sheet, Spinner } from "@/components/ui";
-import DiscoverDrawer, { PEEK } from "@/components/DiscoverDrawer";
+import DiscoverDrawer, { PEEK, type Detent } from "@/components/DiscoverDrawer";
 import { ME_SPAN_M } from "@/lib/map";
 import { readDiscoverView, writeDiscoverView } from "@/lib/discover-view";
 
@@ -83,7 +83,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     maxLng: number;
   } | null>(null);
   const [sort, setSort] = useState<"newest" | "oinks" | "cheap" | "pricey">("newest");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerDetent, setDrawerDetent] = useState<Detent>("min");
   /**
    * Where this screen was when it was last left. Read into a ref rather than
    * state: the map needs it the instant it mounts, and a ref takes no part in
@@ -468,8 +468,8 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
           dropping a pin, where the map is the only thing that matters. */}
       {places && !pickMode && (
         <DiscoverDrawer
-          expanded={drawerOpen}
-          onExpandedChange={setDrawerOpen}
+          detent={drawerDetent}
+          onDetentChange={setDrawerDetent}
           peek={selected ?? inView[0] ?? null}
           places={listed}
           anyMatches={filtered.length > 0}
