@@ -17,28 +17,30 @@ import PlacePhoto from "./PlacePhoto";
 export default function PhotoCarousel({
   images,
   alt,
-  leadSrc,
+  tailSrc,
   onOpen,
   className = "",
 }: {
   images: Image[];
   alt: string;
-  /** The place's own Google listing photo, shown first. Dropped if it fails. */
-  leadSrc?: string | null;
+  /** The place's own Google listing photo, shown *after* everyone's own shots.
+   *  Dropped if it fails. */
+  tailSrc?: string | null;
   /** Raise the full-screen viewer at the photo currently showing. The carousel
    *  owns which slide that is, so it reports the index rather than the URL. */
   onOpen?: (index: number) => void;
   className?: string;
 }) {
   const [index, setIndex] = useState(0);
-  const [leadFailed, setLeadFailed] = useState(false);
+  const [tailFailed, setTailFailed] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  // The lead can 404 — no key, no listing photo — so it's only counted once the
-  // browser has actually loaded it.
+  // Uploads lead: whoever went and took a photo of the place has earned the
+  // first slide over a stock listing shot. The listing one can 404 — no key, no
+  // photo — so it's only counted once the browser has actually loaded it.
   const slides: { key: string; src: string }[] = [
-    ...(leadSrc && !leadFailed ? [{ key: "google", src: leadSrc }] : []),
     ...images.map((img) => ({ key: img.id, src: img.url })),
+    ...(tailSrc && !tailFailed ? [{ key: "google", src: tailSrc }] : []),
   ];
 
   if (slides.length === 0) {
@@ -77,7 +79,7 @@ export default function PhotoCarousel({
             className={`h-full w-full shrink-0 snap-center object-cover ${onOpen ? "cursor-zoom-in" : ""}`}
             draggable={false}
             onClick={onOpen ? () => onOpen(i) : undefined}
-            onError={slide.key === "google" ? () => setLeadFailed(true) : undefined}
+            onError={slide.key === "google" ? () => setTailFailed(true) : undefined}
           />
         ))}
       </div>

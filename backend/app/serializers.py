@@ -311,6 +311,8 @@ def restaurant_summary(
         lng=restaurant.lng,
         # Uploaded photo wins; the auto-sourced one is the fallback.
         cover_image_url=restaurant.cover_image_url or restaurant.photo_url,
+        # `Restaurant.cover_image_url` is only ever written by an upload.
+        uploaded_photo_url=restaurant.cover_image_url,
         google_maps_url=maps_url(restaurant),
         google_place_id=restaurant.google_place_id,
         recommenders=recommenders,

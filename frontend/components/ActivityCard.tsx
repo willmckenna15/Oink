@@ -116,10 +116,13 @@ function ReviewCard({ item, agreed }: { item: FeedItem; agreed: User[] }) {
 
       <Link href={`/restaurant/${place.id}`} className="flex gap-3 p-3">
         <PlacePhoto
+          /* This person's own shot of the place first, then anyone else's,
+             then the listing photo. The card is their write-up; leading it with
+             a stock image of the dining room is somebody else's story. */
           src={
-            place.google_place_id
-              ? googlePhotoSrc(place.id)
-              : item.images[0]?.url ?? place.cover_image_url
+            item.images[0]?.url ??
+            place.uploaded_photo_url ??
+            (place.google_place_id ? googlePhotoSrc(place.id) : place.cover_image_url)
           }
           alt={place.name}
           className="h-[74px] w-[74px] shrink-0 rounded-lg border-2 border-ink"

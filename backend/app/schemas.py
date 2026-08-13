@@ -130,6 +130,11 @@ class RestaurantSummary(BaseModel):
     lat: float
     lng: float
     cover_image_url: Optional[str]
+    # An actual upload, if anyone has added one. Kept apart from
+    # `cover_image_url`, which folds uploads and the auto-sourced photo into one
+    # field and so can't say which it's holding — and the client needs to know,
+    # because somebody's own photo of a place beats a stock listing shot.
+    uploaded_photo_url: Optional[str] = None
     google_maps_url: Optional[str]
     # Present when the place came from Google; the client uses it to ask for the
     # Maps listing photo, which leads the gallery ahead of anyone's own shots.

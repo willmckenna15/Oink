@@ -73,9 +73,11 @@ export default function PlacePage({ params }: { params: Promise<{ id: string }> 
   const uploaders = new Map(
     place.recommendations.flatMap((r) => r.images.map((img) => [img.id, r.user] as const))
   );
+  // Same order as the carousel, or opening the viewer lands on a different
+  // photo from the one that was on screen.
   const headerPhotos: ViewerPhoto[] = [
-    ...(place.google_place_id ? [{ url: googlePhotoSrc(place.id), by: null }] : []),
     ...place.images.map((img) => ({ url: img.url, by: uploaders.get(img.id) ?? null })),
+    ...(place.google_place_id ? [{ url: googlePhotoSrc(place.id), by: null }] : []),
   ];
 
   return (
@@ -91,7 +93,7 @@ export default function PlacePage({ params }: { params: Promise<{ id: string }> 
 
         <PhotoCarousel
           images={place.images}
-          leadSrc={place.google_place_id ? googlePhotoSrc(place.id) : null}
+          tailSrc={place.google_place_id ? googlePhotoSrc(place.id) : null}
           onOpen={(i) => setLightbox({ photos: headerPhotos, index: i })}
           alt={place.name}
           className="h-52 w-full"

@@ -31,7 +31,12 @@ export default function PlaceListCard({
           shape on every row; `object-cover` then crops to the middle, which is
           where the subject of a restaurant photo almost always is. */}
       <PlacePhoto
-        src={place.google_place_id ? googlePhotoSrc(place.id) : place.cover_image_url}
+        /* Somebody's own photo of the place first — they were there, and the
+           listing shot is a press photo of an empty room. */
+        src={
+          place.uploaded_photo_url ??
+          (place.google_place_id ? googlePhotoSrc(place.id) : place.cover_image_url)
+        }
         alt={place.name}
         className="h-[80px] w-[80px] shrink-0 border-r-2 border-ink"
       />

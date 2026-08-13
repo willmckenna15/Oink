@@ -40,6 +40,8 @@ export type PlaceSummary = {
   lat: number;
   lng: number;
   cover_image_url: string | null;
+  /** A photo somebody actually uploaded, if there is one. Beats the listing shot. */
+  uploaded_photo_url: string | null;
   google_maps_url: string | null;
   google_place_id: string | null;
   recommenders: User[];
