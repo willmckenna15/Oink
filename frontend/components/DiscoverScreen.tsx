@@ -14,6 +14,7 @@ import PigAvatar from "@/components/pigs/PigAvatar";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import AddPlaceSheet from "@/components/AddPlaceSheet";
 import { EmptyState, KIND_LABELS, Sheet, Spinner } from "@/components/ui";
+import DiscoverDrawer, { PEEK } from "@/components/DiscoverDrawer";
 
 // Leaflet touches `window` at import time, so it can't be server-rendered.
 const MapView = dynamic(() => import("@/components/MapView"), {
@@ -44,7 +45,6 @@ function FaceRow({ people, muted = false }: { people: User[]; muted?: boolean })
 
 export default function DiscoverScreen({ initialPlaces }: { initialPlaces: PlaceSummary[] | null }) {
   const [places, setPlaces] = useState<PlaceSummary[] | null>(initialPlaces);
-  const [view, setView] = useState<"map" | "list">("map");
   const [selected, setSelected] = useState<PlaceSummary | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -76,6 +76,21 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     maxLng: number;
   } | null>(null);
   const [sort, setSort] = useState<"newest" | "oinks" | "cheap" | "pricey">("newest");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  /**
+   * Which layout is live. Tailwind can hide the wrong one, but two of these
+   * decisions aren't CSS: the pin sheet must not *mount* on a phone (it locks
+   * body scroll when it opens, visible or not), and the add button's offset
+   * differs per layout — an inline style would beat any `lg:` class.
+   */
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   const [kinds, setKinds] = useState<Kind[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -122,18 +137,31 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
    * outside the viewport is simply off screen, and culling those would empty
    * the map as you panned toward them.
    */
-  const listed = useMemo(() => {
-    const inView = bounds
-      ? filtered.filter(
-          (p) =>
-            p.lat >= bounds.minLat &&
-            p.lat <= bounds.maxLat &&
-            p.lng >= bounds.minLng &&
-            p.lng <= bounds.maxLng
-        )
-      : filtered;
-    if (sort === "newest") return inView;
+  /**
+   * What's on the map, in the order the API sent it — newest first. Kept apart
+   * from the sorted list because the drawer's shut state shows "the newest
+   * thing on screen", and that has to stay true whatever the sort is set to.
+   */
+  const inView = useMemo(() => {
+    if (!bounds) return filtered;
+    return filtered.filter(
+      (p) =>
+        p.lat >= bounds.minLat &&
+        p.lat <= bounds.maxLat &&
+        p.lng >= bounds.minLng &&
+        p.lng <= bounds.maxLng
+    );
+  }, [filtered, bounds]);
 
+  /**
+   * The list: what's on the map, sorted.
+   *
+   * Kept separate from `filtered` because the map wants every match — a pin
+   * outside the viewport is simply off screen, and culling those would empty
+   * the map as you panned toward them.
+   */
+  const listed = useMemo(() => {
+    if (sort === "newest") return inView;
     const price = (p: PlaceSummary) => BUDGETS.indexOf(p.budget);
     // Sorted copies, and every comparator falls back to the name so a page of
     // one-oink places doesn't reshuffle itself on every re-render.
@@ -143,7 +171,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
       if (sort === "cheap") return price(a) - price(b) || byName(a, b);
       return price(b) - price(a) || byName(a, b);
     });
-  }, [filtered, bounds, sort]);
+  }, [inView, sort]);
 
   const ALL_KINDS: Kind[] = useMemo(() => ["restaurant", "bar", "cafe"], []);
 
@@ -199,7 +227,6 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setFocusPoint({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setView("map");
         setCityBusy(false);
       },
       () => {
@@ -225,7 +252,6 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
       // A new object each time, so searching the same city twice still moves
       // the map back if you've panned away since.
       setFocusPoint({ lat: best.lat, lng: best.lng });
-      setView("map");
     } catch {
       setCityError("Couldn't look that up.");
     } finally {
@@ -247,63 +273,43 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
 
   return (
     <div className="relative flex h-[100dvh] flex-col">
+      {/* Title and search share a line: on a phone the map is the screen, and
+          every row above it is a row the map doesn't get. Filters and locate
+          move onto the map itself below. */}
       <header className="z-[900] bg-oat px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <h1 className="flex-1 text-3xl text-plum">discover</h1>
+          <h1 className="shrink-0 text-3xl text-plum">discover</h1>
+          <form onSubmit={goToCity} className="flex min-w-0 flex-1 items-center gap-2">
+            <input
+              className="field min-w-0 flex-1 py-2 text-sm"
+              value={cityQuery}
+              onChange={(e) => {
+                setCityQuery(e.target.value);
+                setCityError(null);
+              }}
+              placeholder="jump to a city…"
+              aria-label="search for a city"
+              enterKeyHint="search"
+            />
+            <button
+              type="submit"
+              className="btn-plain shrink-0 px-3 py-2 text-sm"
+              disabled={cityBusy || cityQuery.trim().length < 3}
+            >
+              {cityBusy ? "…" : "Go"}
+            </button>
+          </form>
+          {/* A laptop has the room, so it keeps its filters button up here and
+              the map stays clear. */}
           <button
             onClick={() => setFiltersOpen(true)}
-            className={`btn px-3 py-2 text-sm ${
+            className={`btn hidden shrink-0 px-3 py-2 text-sm lg:block ${
               activeFilters ? "bg-plum text-oat" : "bg-cream"
             }`}
           >
             Filters{activeFilters ? ` (${activeFilters})` : ""}
           </button>
-          {/* The toggle is a phone compromise — a laptop has room for both, so
-              above `lg` they're both on screen and there's nothing to switch. */}
-          <div className="flex overflow-hidden rounded-xl border-2 border-ink bg-cream lg:hidden">
-            {(["map", "list"] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-2 font-display text-sm font-bold ${
-                  view === v ? "bg-plum text-oat" : "text-ink"
-                }`}
-              >
-                {v === "map" ? "Map" : "List"}
-              </button>
-            ))}
-          </div>
         </div>
-        <form onSubmit={goToCity} className="mt-2 flex gap-2">
-          <input
-            className="field flex-1 py-2 text-sm"
-            value={cityQuery}
-            onChange={(e) => {
-              setCityQuery(e.target.value);
-              setCityError(null);
-            }}
-            placeholder="jump to a city or area…"
-            aria-label="search for a city"
-            enterKeyHint="search"
-          />
-          <button
-            type="submit"
-            className="btn-plain px-4 text-sm"
-            disabled={cityBusy || cityQuery.trim().length < 3}
-          >
-            {cityBusy ? "…" : "Go"}
-          </button>
-          <button
-            type="button"
-            onClick={locateMe}
-            className="btn-plain px-3 text-base"
-            aria-label="centre the map on my location"
-            title="centre on my location"
-            disabled={cityBusy}
-          >
-            ◎
-          </button>
-        </form>
         {cityError && <p className="mt-1 px-1 text-xs font-bold text-rust">{cityError}</p>}
 
         {pickMode && (
@@ -317,7 +323,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
         {!places && <Spinner label="finding the good stuff…" />}
 
         {places && (
-          <div className={`lg:block lg:h-full lg:min-w-0 lg:flex-1 ${view === "map" ? "h-full w-full" : "hidden"}`}>
+          <div className="h-full w-full lg:h-full lg:min-w-0 lg:flex-1">
             <MapView
               places={filtered}
               onSelect={setSelected}
@@ -334,15 +340,35 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
               }}
               className="h-full w-full"
             />
+
+            {/* Over the map on a phone, where the header has no room for them.
+                Both clear the drawer's shut height. */}
+            <button
+              onClick={() => setFiltersOpen(true)}
+              className={`btn absolute right-3 top-3 z-[1000] px-3 py-2 text-sm shadow-lift lg:hidden ${
+                activeFilters ? "bg-plum text-oat" : "bg-cream"
+              }`}
+            >
+              Filters{activeFilters ? ` (${activeFilters})` : ""}
+            </button>
+            <button
+              type="button"
+              onClick={locateMe}
+              disabled={cityBusy}
+              className="btn-plain absolute left-3 z-[1000] px-3 py-2 text-base shadow-lift lg:hidden"
+              style={{ bottom: `calc(${PEEK + 112}px + env(safe-area-inset-bottom))` }}
+              aria-label="centre the map on my location"
+              title="centre on my location"
+            >
+              ◎
+            </button>
           </div>
         )}
 
         {places && (
           <div
-            className={`h-full space-y-3 overflow-y-auto px-3 py-1 pb-[calc(112px+env(safe-area-inset-bottom))]
-                        lg:block lg:w-[400px] lg:shrink-0 lg:border-l-2 lg:border-ink lg:pb-6 ${
-                          view === "list" ? "" : "hidden"
-                        }`}
+            className="hidden h-full space-y-3 overflow-y-auto px-3 py-1
+                       lg:block lg:w-[400px] lg:shrink-0 lg:border-l-2 lg:border-ink lg:pb-6"
           >
             {/* Sticky, so the sort stays reachable however far down you are. */}
             <div className="sticky top-0 z-10 -mx-3 flex items-center gap-2 bg-oat px-3 pb-2 pt-1">
@@ -390,17 +416,39 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
           }}
           /* Sits clear of the tab bar — this screen has no spacer, so the
              offset has to cover the bar's height itself. */
-          className="absolute bottom-[calc(112px+env(safe-area-inset-bottom))] right-4 z-[1000] flex h-16 w-16 items-center justify-center rounded-full bg-plum font-display text-4xl font-extrabold text-white transition-transform active:scale-95 lg:bottom-6 lg:right-[424px]"
+          className="absolute right-4 z-[1000] flex h-16 w-16 items-center justify-center rounded-full bg-plum font-display text-4xl font-extrabold text-white shadow-lift transition-transform active:scale-95 lg:right-[424px]"
+          style={{
+            bottom: isDesktop ? 24 : `calc(${PEEK + 112}px + env(safe-area-inset-bottom))`,
+          }}
           aria-label="add a place"
         >
           +
         </button>
       </div>
 
+      {/* Tapping a pin fills this rather than opening a sheet — the map stays
+          visible, which is the whole point of the redesign. Hidden while
+          dropping a pin, where the map is the only thing that matters. */}
+      {places && !pickMode && (
+        <DiscoverDrawer
+          expanded={drawerOpen}
+          onExpandedChange={setDrawerOpen}
+          peek={selected ?? inView[0] ?? null}
+          places={listed}
+          anyMatches={filtered.length > 0}
+          sort={sort}
+          onSortChange={(v) => setSort(v as typeof sort)}
+        />
+      )}
+
       <BottomTabBar />
 
       {/* Pin tap → bottom sheet (spec §6.3) */}
-      <Sheet open={!!selected} onClose={() => setSelected(null)} title={selected?.name ?? ""}>
+      <Sheet
+        open={!!selected && isDesktop}
+        onClose={() => setSelected(null)}
+        title={selected?.name ?? ""}
+      >
         {selected && (
           <div className="space-y-3 pb-4">
             <div className="flex items-center justify-between gap-2">
@@ -578,8 +626,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
         onRequestPick={() => {
           setAddOpen(false);
           setPickMode(true);
-          setView("map");
-        }}
+          }}
         onPointResolved={(lat, lng) => setPickedPoint({ lat, lng })}
         onCreated={() => {
           load();
