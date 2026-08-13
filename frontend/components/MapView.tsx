@@ -282,6 +282,15 @@ export default function MapView({
       const report = () => {
         const c = map.getCenter();
         centerCb.current?.(c.lat, c.lng);
+        // A hidden map has no viewport to report. On a phone the list replaces
+        // the map with `display:none`, which collapses the container to 0x0;
+        // the resize observer then calls invalidateSize, Leaflet fires moveend,
+        // and getBounds comes back as a single point. Anything scoped to those
+        // bounds sees nothing — which is how switching to the list emptied it.
+        // Saying nothing leaves the last real viewport standing, which is what
+        // the list should be showing anyway.
+        const size = map.getSize();
+        if (!size.x || !size.y) return;
         const b = map.getBounds();
         boundsCb.current?.({
           minLat: b.getSouth(),
