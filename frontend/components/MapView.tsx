@@ -488,28 +488,33 @@ export default function MapView({
       meMarkerRef.current = null;
       if (!myPoint) return;
 
-      const face = renderToStaticMarkup(
+      const pig = renderToStaticMarkup(
         <PigAvatar
           config={me?.pig_avatar_config}
           placesLogged={me?.places_logged ?? 0}
           lastLoggedAt={me?.last_logged_at}
-          size={38}
-          variant="face"
-          bare
+          size={52}
+          variant="full"
         />
       );
+      // Standing on the spot rather than cropped into a badge — a full body in
+      // a circle loses its legs, which is most of what makes it a pig. The
+      // halo under its feet is the fix; the anchor sits at the centre of that,
+      // so the pig stands on the point rather than over it.
       const icon = L.divIcon({
         className: "oink-me",
-        html: `<div style="position:relative;width:54px;height:54px">
-                 <div style="position:absolute;inset:0;border-radius:50%;background:rgba(145,78,86,.18)"></div>
-                 <div style="position:absolute;left:7px;top:7px;width:40px;height:40px;border-radius:50%;
-                             overflow:hidden;border:3px solid #914E56;background:#FFFDF6;
-                             box-shadow:0 2px 8px rgba(77,48,63,.32);
-                             display:flex;align-items:center;justify-content:center">${face}</div>
+        html: `<div style="position:relative;width:60px;height:66px">
+                 <div style="position:absolute;left:9px;bottom:0;width:42px;height:18px;
+                             border-radius:50%;background:rgba(145,78,86,.22)"></div>
+                 <div style="position:absolute;left:11px;bottom:5px;width:38px;height:9px;
+                             border-radius:50%;background:rgba(145,78,86,.45)"></div>
+                 <div style="position:absolute;left:4px;top:0;width:52px;
+                             filter:drop-shadow(0 2px 3px rgba(77,48,63,.35))">${pig}</div>
                </div>`,
-        iconSize: [54, 54],
-        iconAnchor: [27, 27],
+        iconSize: [60, 66],
+        iconAnchor: [30, 57],
       });
+
       // Under the place pins and untappable: this is orientation, not content,
       // and it must never sit between a finger and a restaurant.
       meMarkerRef.current = L.marker([myPoint.lat, myPoint.lng], {
