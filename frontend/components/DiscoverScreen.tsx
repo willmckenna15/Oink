@@ -202,6 +202,25 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     });
   }, [inView, sort]);
 
+  /**
+   * The same list, with the tapped pin's place pulled to the front.
+   *
+   * The phone drawer shows its first entry when shut, so this is what puts the
+   * pin you just tapped on screen. It used to be a separate card rendered in
+   * place of the list, but that made opening the drawer a swap of one subtree
+   * for another — every card mounting mid-gesture. One list that reorders
+   * costs nothing to reveal.
+   */
+  const ordered = useMemo(() => {
+    if (!selected) return listed;
+    const i = listed.findIndex((p) => p.id === selected.id);
+    // Panning can leave the selection off screen and out of `listed` entirely;
+    // it's still what you asked to see, so it goes on the front regardless.
+    if (i < 0) return [selected, ...listed];
+    if (i === 0) return listed;
+    return [listed[i], ...listed.slice(0, i), ...listed.slice(i + 1)];
+  }, [listed, selected]);
+
   const ALL_KINDS: Kind[] = useMemo(() => ["restaurant", "bar", "cafe"], []);
 
   // Subtypes belong to a type: cuisines under restaurants, drinking-institution
@@ -470,8 +489,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
         <DiscoverDrawer
           detent={drawerDetent}
           onDetentChange={setDrawerDetent}
-          peek={selected ?? inView[0] ?? null}
-          places={listed}
+          places={ordered}
           anyMatches={filtered.length > 0}
           sort={sort}
           onSortChange={(v) => setSort(v as typeof sort)}

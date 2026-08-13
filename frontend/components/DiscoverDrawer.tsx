@@ -24,15 +24,23 @@
  * live height in React state instead would re-render every card in the list on
  * every pointer event, which is exactly the frame budget a drag needs.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlaceSummary } from "@/lib/types";
 import PlaceListCard from "@/components/PlaceListCard";
 import { EmptyState } from "@/components/ui";
 
-/** How tall the drawer is when shut: the handle strip and one card, measured
- *  rather than guessed — a peek taller than its contents is a band of empty
- *  oat where the map should be. */
-export const PEEK = 134;
+/**
+ * How tall the drawer is when shut: the handle strip (38), the sort row (37)
+ * and one card, ending at 161, cut in the 12px gap before the next card starts
+ * at 173. Measured rather than guessed, in both directions — a peek taller than
+ * its contents is a band of empty oat where the map should be, and one a few
+ * pixels shorter leaves a sliver of the next card pinned to the bottom edge.
+ *
+ * The sort row costs the map 38px it didn't use to. That's the price of the row
+ * never having to appear: it used to mount when the drawer opened, which is
+ * both the jump you saw and, with the list behind it, the stutter you felt.
+ */
+export const PEEK = 172;
 /** Air kept above the drawer at full height, so the map never disappears
  *  entirely and the filter button stays reachable. */
 const TOP_GAP = 88;
@@ -63,7 +71,6 @@ type Drag = {
 export default function DiscoverDrawer({
   detent,
   onDetentChange,
-  peek,
   places,
   anyMatches,
   sort,
@@ -71,7 +78,8 @@ export default function DiscoverDrawer({
 }: {
   detent: Detent;
   onDetentChange: (v: Detent) => void;
-  peek: PlaceSummary | null;
+  /** Sorted, and with the tapped pin's place first — that's the one on show
+   *  when the drawer is shut. */
   places: PlaceSummary[];
   /** Whether anything matched the filters at all, anywhere on the map. */
   anyMatches: boolean;
@@ -85,13 +93,18 @@ export default function DiscoverDrawer({
   const handled = useRef(false);
 
   const [snaps, setSnaps] = useState<Snaps | null>(null);
+  const open = detent !== "min";
+
   /**
-   * Whether the list is showing. Normally that follows the detent, but mid-drag
-   * it follows the live height, so pulling up reveals the list as it grows
-   * instead of after it stops. Null means "just use the detent".
+   * Held apart from the rest of the render so that settling on a new detent —
+   * which changes the label, the aria and one overflow class — can't drag ten
+   * cards and their pig avatars through React with it. Same elements back,
+   * so React skips those subtrees entirely.
    */
-  const [dragOpen, setDragOpen] = useState<boolean | null>(null);
-  const open = dragOpen ?? detent !== "min";
+  const cards = useMemo(
+    () => places.map((p) => <PlaceListCard key={p.id} place={p} />),
+    [places],
+  );
 
   /** How long the next settle should take. Written by the release handler,
    *  which knows the throw; anything else gets the plain 260ms. */
@@ -162,11 +175,9 @@ export default function DiscoverDrawer({
     d.trail.push({ y: e.clientY, t: e.timeStamp });
     if (d.trail.length > 8) d.trail.shift();
 
-    // Up the screen is a smaller clientY, and a taller drawer.
+    // Up the screen is a smaller clientY, and a taller drawer. This is the
+    // whole of a drag frame: one custom property, no React, no layout.
     setHeight(resist(d.startH - dy, d.snaps.min, d.snaps.max), 0);
-
-    const showList = d.startH - dy > PEEK + 28;
-    if (showList !== open) setDragOpen(showList);
   }
 
   function onPointerUp(e: React.PointerEvent) {
@@ -183,7 +194,6 @@ export default function DiscoverDrawer({
       Math.abs(v) > FLICK ? (v < 0 ? 1 : -1) : d.moved ? (h > d.startH ? 1 : -1) : 0;
 
     if (dir === 0) {
-      setDragOpen(null);
       setHeight(d.snaps[detent], 200);
       toggle();
       return;
@@ -198,7 +208,6 @@ export default function DiscoverDrawer({
       420,
     );
 
-    setDragOpen(null);
     settleMs.current = ms;
     setHeight(d.snaps[target], ms);
     go(target);
@@ -209,7 +218,6 @@ export default function DiscoverDrawer({
     drag.current = null;
     handled.current = true;
     if (!d) return;
-    setDragOpen(null);
     setHeight(d.snaps[detent], 200);
   }
 
@@ -238,7 +246,7 @@ export default function DiscoverDrawer({
   return (
     <div
       ref={elRef}
-      className="fixed inset-x-0 z-[1200] flex flex-col overflow-hidden rounded-t-3xl border-x-2 border-t-2 border-ink bg-oat shadow-lift lg:hidden"
+      className="fixed inset-x-0 z-[1200] overflow-hidden rounded-t-3xl border-x-2 border-t-2 border-ink bg-oat shadow-lift lg:hidden"
       style={{
         bottom: "calc(100px + env(safe-area-inset-bottom))",
         // Constant on purpose — see the note at the top of the file. The
@@ -247,57 +255,70 @@ export default function DiscoverDrawer({
       }}
       aria-label="places in view"
     >
-      {/* The whole strip is the handle, not just the bar — a 4px target is a
-          gesture only its author can hit. */}
-      <button
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onClick={onClick}
-        onKeyDown={onKeyDown}
-        className="flex w-full shrink-0 touch-none select-none flex-col items-center gap-1 px-3 pb-1 pt-2.5"
-        aria-expanded={open}
-        aria-label={`${places.length} places in view — drag, or use the arrow keys, to resize the list`}
+      {/*
+        Held at full height whatever the drawer is doing, and clipped by it.
+        The drag then changes only where this gets cut off — if the panel were
+        sized off the drawer instead, every frame would re-run the flex column
+        and re-measure the scroll area under a list of cards.
+      */}
+      <div
+        className="flex flex-col"
+        style={{ height: snaps ? `${snaps.max}px` : "68vh" }}
       >
-        <span aria-hidden className="h-1.5 w-11 rounded-full bg-ink/25" />
-        <span className="micro w-full text-left">
-          {places.length} {places.length === 1 ? "place" : "places"} in view
-          <span className="float-right">{open ? "close" : "see all"}</span>
-        </span>
-      </button>
+        {/* The whole strip is the handle, not just the bar — a 4px target is a
+            gesture only its author can hit. */}
+        <button
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onClick={onClick}
+          onKeyDown={onKeyDown}
+          className="flex w-full shrink-0 touch-none select-none flex-col items-center gap-1 px-3 pb-1 pt-2.5"
+          aria-expanded={open}
+          aria-label={`${places.length} places in view — drag, or use the arrow keys, to resize the list`}
+        >
+          <span aria-hidden className="h-1.5 w-11 rounded-full bg-ink/25" />
+          <span className="micro w-full text-left">
+            {places.length} {places.length === 1 ? "place" : "places"} in view
+            <span className="float-right">{open ? "close" : "see all"}</span>
+          </span>
+        </button>
 
-      {/* Shut: the one place. Open: the sort, then all of them. */}
-      {open ? (
-        <>
-          <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
-            <label className="ml-auto flex items-center gap-1.5">
-              <span className="micro">sort</span>
-              <select
-                value={sort}
-                onChange={(e) => onSortChange(e.target.value)}
-                className="rounded-lg border-2 border-ink bg-cream px-2 py-1 font-display text-xs font-bold"
-                aria-label="sort the list"
-              >
-                <option value="newest">Newest</option>
-                <option value="oinks">Most oinks</option>
-                <option value="cheap">Cheapest</option>
-                <option value="pricey">Priciest</option>
-              </select>
-            </label>
-          </div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pb-4">
-            {places.length === 0 && <Nothing anyMatches={anyMatches} />}
-            {places.map((p) => (
-              <PlaceListCard key={p.id} place={p} />
-            ))}
-          </div>
-        </>
-      ) : (
-        <div className="px-3 pb-3">
-          {peek ? <PlaceListCard place={peek} /> : <Nothing anyMatches={anyMatches} />}
+        {/* The sort and the list are always here, however shut the drawer is —
+            the drag only moves the edge that hides them. They used to be
+            swapped in at a threshold, which meant mounting every card in the
+            middle of a gesture: one 76ms frame, right where the hand expects
+            the list to start following it. */}
+        <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
+          <label className="ml-auto flex items-center gap-1.5">
+            <span className="micro">sort</span>
+            <select
+              value={sort}
+              onChange={(e) => onSortChange(e.target.value)}
+              className="rounded-lg border-2 border-ink bg-cream px-2 py-1 font-display text-xs font-bold"
+              aria-label="sort the list"
+            >
+              <option value="newest">Newest</option>
+              <option value="oinks">Most oinks</option>
+              <option value="cheap">Cheapest</option>
+              <option value="pricey">Priciest</option>
+            </select>
+          </label>
         </div>
-      )}
+
+        {/* Shut, the list can't be scrolled — the one card on show is the peek,
+            and a stray swipe scrolling it out of sight would be a puzzle. The
+            class only changes when a gesture settles, never during one. */}
+        <div
+          className={`min-h-0 flex-1 space-y-3 px-3 pb-4 ${
+            open ? "overflow-y-auto overscroll-contain" : "overflow-hidden"
+          }`}
+        >
+          {places.length === 0 && <Nothing anyMatches={anyMatches} />}
+          {cards}
+        </div>
+      </div>
     </div>
   );
 }
