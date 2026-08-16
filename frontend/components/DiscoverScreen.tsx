@@ -402,9 +402,18 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
           </div>
         )}
 
-        {places && (
+        {/*
+          Gated on the layout, not just hidden by it. `hidden lg:block` still
+          mounts every card on a phone and — because the list is scoped to the
+          map — re-renders all of them each time the map settles, behind a
+          `display: none` nobody can see. At a few hundred places that was 29k
+          DOM nodes, 89% of the document, and ~279ms of script after every pan
+          and every drawer drag. Same reasoning as the pin sheet above: on a
+          phone this must not mount, not merely not show.
+        */}
+        {places && isDesktop && (
           <div
-            className="hidden h-full space-y-3 overflow-y-auto px-3 py-1
+            className="h-full space-y-3 overflow-y-auto px-3 py-1
                        lg:block lg:w-[400px] lg:shrink-0 lg:border-l-2 lg:border-ink lg:pb-6"
           >
             {/* Sticky, so the sort stays reachable however far down you are. */}
