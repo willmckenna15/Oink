@@ -22,6 +22,7 @@
 import { useRef } from "react";
 import type { PlaceSummary } from "@/lib/types";
 import PlaceListCard from "@/components/PlaceListCard";
+import VirtualPlaceList from "@/components/VirtualPlaceList";
 import { EmptyState } from "@/components/ui";
 
 /** How tall the drawer is when shut: the handle strip and one card, measured
@@ -110,12 +111,11 @@ export default function DiscoverDrawer({
               </select>
             </label>
           </div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-4">
-            {places.length === 0 && <Nothing anyMatches={anyMatches} />}
-            {places.map((p) => (
-              <PlaceListCard key={p.id} place={p} />
-            ))}
-          </div>
+          <VirtualPlaceList
+            places={places}
+            className="min-h-0 flex-1 overflow-y-auto px-3 pb-4"
+            empty={<Nothing anyMatches={anyMatches} />}
+          />
         </>
       ) : (
         <div className="px-3 pb-3">

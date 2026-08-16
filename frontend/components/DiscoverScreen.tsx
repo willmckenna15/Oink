@@ -10,6 +10,7 @@ import { BUDGETS, Budget } from "@/lib/pig";
 import { categoriesFor } from "@/lib/categories";
 import BottomTabBar from "@/components/BottomTabBar";
 import PlaceListCard from "@/components/PlaceListCard";
+import VirtualPlaceList from "@/components/VirtualPlaceList";
 import PigAvatar from "@/components/pigs/PigAvatar";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import AddPlaceSheet from "@/components/AddPlaceSheet";
@@ -412,12 +413,12 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
           phone this must not mount, not merely not show.
         */}
         {places && isDesktop && (
-          <div
-            className="h-full space-y-3 overflow-y-auto px-3 py-1
-                       lg:block lg:w-[400px] lg:shrink-0 lg:border-l-2 lg:border-ink lg:pb-6"
-          >
-            {/* Sticky, so the sort stays reachable however far down you are. */}
-            <div className="sticky top-0 z-10 -mx-3 flex items-center gap-2 bg-oat px-3 pb-2 pt-1">
+          <div className="flex h-full w-[400px] shrink-0 flex-col border-l-2 border-ink">
+            {/* Above the scroller now rather than sticky inside it. The list
+                below renders only the rows on screen and positions them from
+                its own scrollTop, so a sibling sticking to the top of that same
+                box would sit on top of the window it was offsetting. */}
+            <div className="flex shrink-0 items-center gap-2 bg-oat px-3 pb-2 pt-1">
               <p className="micro flex-1">
                 {listed.length} {listed.length === 1 ? "place" : "places"} in view
               </p>
@@ -437,19 +438,20 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
               </label>
             </div>
 
-            {listed.length === 0 && (
-              <EmptyState
-                title="nothing here"
-                body={
-                  filtered.length
-                    ? "no matches in this part of the map — pan out, or move the map."
-                    : "loosen the filters a bit."
-                }
-              />
-            )}
-            {listed.map((p) => (
-              <PlaceListCard key={p.id} place={p} />
-            ))}
+            <VirtualPlaceList
+              places={listed}
+              className="min-h-0 flex-1 overflow-y-auto px-3 pb-6"
+              empty={
+                <EmptyState
+                  title="nothing here"
+                  body={
+                    filtered.length
+                      ? "no matches in this part of the map — pan out, or move the map."
+                      : "loosen the filters a bit."
+                  }
+                />
+              }
+            />
           </div>
         )}
 
