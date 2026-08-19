@@ -11,6 +11,7 @@ import { ApiError, api, googlePhotoSrc } from "@/lib/api";
 import type { PlaceDetail, User } from "@/lib/types";
 import PigAvatar from "@/components/pigs/PigAvatar";
 import ReplyThread from "@/components/ReplyThread";
+import { uploadPhotos } from "@/lib/images";
 import PhotoViewer, { type ViewerPhoto } from "@/components/PhotoViewer";
 import { BudgetTag } from "@/components/pigs/PricePig";
 import { OinkPig, ShamePig } from "@/components/pigs/ReactionPigs";
@@ -418,6 +419,8 @@ function ReviewSheet({
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  /** "2 of 5" while photos go up, so a slow upload doesn't look like a freeze. */
+  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Deleting a write-up is destructive and there's no undo, so it asks first.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -458,13 +461,26 @@ function ReviewSheet({
     setSaving(true);
     setError(null);
     try {
-      for (const file of files) {
-        await api.uploadImage(place.id, file);
-      }
+      // Photos are shrunk and sent a few at a time; a failure among them is
+      // reported but never costs you the write-up.
+      const { failed } = await uploadPhotos(
+        files,
+        (file) => api.uploadImage(place.id, file),
+        (done, total) => setUploading({ done, total })
+      );
+      setUploading(null);
       onSaved(await api.recommend(place.id, text.trim(), dishes));
+      if (failed.length) {
+        setError(
+          failed.length === files.length
+            ? "Your write-up saved, but none of the photos would upload."
+            : `Your write-up saved. ${failed.length} of ${files.length} photos wouldn't upload.`
+        );
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't save that");
     } finally {
+      setUploading(null);
       setSaving(false);
     }
   }
@@ -518,7 +534,13 @@ function ReviewSheet({
         {error && <ErrorNote message={error} />}
 
         <button type="submit" className="btn-primary w-full text-lg" disabled={saving}>
-          {saving ? "Posting…" : existing ? "Update" : "Post it"}
+          {uploading
+            ? `Uploading ${uploading.done} of ${uploading.total}…`
+            : saving
+              ? "Posting…"
+              : existing
+                ? "Update"
+                : "Post it"}
         </button>
 
         {existing &&
