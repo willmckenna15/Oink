@@ -100,7 +100,7 @@ Detail responses include `oinked_by` and `shamed_by` as separate user lists (§6
 
 ## 6. Frontend
 
-**Mobile-first.** Every page is designed phone-first; desktop centres the same phone-width column. Bottom tab bar (Feed / Discover / You), bottom sheets rather than centred modals, ≥44px tap targets.
+**Mobile-first.** Every page is designed phone-first; desktop centres the same phone-width column. Bottom tab bar (Feed / Discover / Farm / You), bottom sheets rather than centred modals, ≥44px tap targets.
 
 | Route | Purpose |
 |---|---|
@@ -218,21 +218,71 @@ otherwise quietly clear disagreement off their own card.
 ### 6.5 Profile
 **Full-body pig** at current fatness tier, display name, places-logged count, tier label and progress to the next one. Pig customiser (colour/hat/accessory/background). Places logged. Wishlist link.
 
-### 6.6 Pigsty
-The fourth tab: everyone on Oink, out on a field of grass you drag around and
-zoom, rather than a scrolling list. The point is being able to pull back and see
-the whole group standing about, which a directory can't do.
+### 6.6 The farm
+The fourth tab. The farm is every sty on Oink, scattered across one flower
+meadow you drag around and zoom; a **sty** is a group of pigs with its own hut
+on that meadow and its own ground inside. The old single pigsty is now one sty
+among many — **The OG Sty**, seeded with everyone and admined by the founders.
+
+**A sty is a lens, not a wall.** You can see the whole farm from the outside:
+every hut, its name, three faces and a count. What you can't do is walk into one
+uninvited. A sty you're not in is drawn dimmed with two chains running in from
+either side to a padlock hanging over the middle of its door; the chains and the
+lock are at full strength, so it reads as a sty somebody locked rather than a
+picture somebody faded. Tapping it says *you are not a pig of this sty* and
+offers a request to join. Requesting twice does nothing — the request is
+idempotent, and the button says `requested` afterwards.
+
+**Huts are scattered, not listed.** Each sty's patch of grass comes from a hash
+of its id, so it sits in the same place every visit and you find it by learning
+where it is — the same bargain the sty itself makes with its pigs. Yours are
+seeded from the middle outward and everyone else's from the edge inward, so the
+default view opens on your own. Toggling *my sties* / *the whole farm* reframes
+the view rather than reflowing it: the huts never move, the camera does. Search
+does the same, panning to whatever matches — a sty by name, or a pig by name or
+username.
+
+**Six huts, six grounds**, chosen independently by a sty's admins:
+corrugated sty, beach hut, igloo, volcano, sand castle, nightclub; and flower
+meadow, beach, snow, lava, desert, nightclub. The ground is a repeating tile
+inside the panned layer, so it scales with the zoom and never runs out. Scenery
+that belongs to the screen rather than the field is pinned to the viewport —
+snow's mountains stay in a band at the very top, the beach's sea stays along the
+bottom, the nightclub's ball and lasers stay overhead — because panning
+shouldn't sail the sea up into the sky. Dark floors put a patch of light under
+each pig, or a charcoal one disappears into the lava.
+
+**Every sty has its own throne and its own shame enclosure**, counted over that
+sty's members only. That is most of the point of splitting the farm up: a small
+sty can crown somebody instead of being permanently outvoted by a big one.
+
+**Admins.** Whoever makes a sty is its first admin. An admin approves and
+declines join requests — the queue sits at the top of the sty screen for admins
+and nowhere else, because it's a job to do and should be in the way — and can
+remove a pig, make another pig an admin, and change the hut and ground. A sty
+can't be left without an admin; the last one is blocked from leaving. The OG Sty
+is no different.
+
+**The feed and the map are scoped to your sties.** The feed is everything logged
+by anyone who shares a sty with you — a farm you could see all of would make
+joining a sty pointless. Somebody in no sty at all still sees their own activity,
+so a new account's feed is never blank for want of a group. The map's filter
+adds a lens: all my sties (the default), any one sty, or the whole farm. Unlike
+the map's other filters this one can't run on the client — a place logged only
+by a sty you're not in was never in the payload, and shouldn't be.
+
+Inside a sty, the field behaves as the pigsty always did:
 
 **No names in the field.** At phone width twenty-odd labels can't avoid fighting
 the art, and the fix isn't smaller type — it's not drawing them. Tap a pig and
 the bar underneath says who it is, with their places, og oinks and tier. That's
 also how you find out who a penguin is in the game this borrows from.
 
-**Positions are stable.** Each pig's patch of grass comes from a hash of its user
-id, not its index in the list, so nobody moves when somebody new joins — the sty
-is only navigable if you can learn where your friends stand. Cells are claimed in
-id order with linear probing, so an arrival takes an empty cell rather than
-displacing anyone. Jitter is capped at half a cell, so two pigs can never
+**Positions are stable.** Each pig's patch of ground comes from a hash of its
+user id, not its index in the list, so nobody moves when somebody new joins — the
+sty is only navigable if you can learn where your friends stand. Cells are
+claimed in id order with linear probing, so an arrival takes an empty cell rather
+than displacing anyone. Jitter is capped at half a cell, so two pigs can never
 overlap however they're seeded.
 
 **The field is sized from the crowd**, not fixed: five pigs shouldn't be marooned
@@ -253,14 +303,19 @@ second finger lands — never on the first touch. A captured pointer retargets t
 following `click` to the capturing element, so grabbing it up front sends every
 tap to the field instead of the pig that was tapped.
 
-**The grass never runs out.** Scenery used to be positioned nodes inside the
+**The ground never runs out.** Scenery used to be positioned nodes inside the
 field, so pulling back ran past its edge into bare green. It's now one repeating
 tile laid far beyond the pigs, which keeps going however far out you go and
-still scales with the zoom because it sits inside the transformed layer.
+still scales with the zoom because it sits inside the transformed layer. The
+tile is a data URI run through `encodeURIComponent` rather than escaped by hand:
+a raw `#` starts a fragment and truncates the URI mid-attribute, which fails
+silently — the element still paints, just with no image on it.
 
 Search pans to the first match and dims the rest rather than filtering the field
 down — the sty should stay a place you're looking around, not collapse into a
 list.
+
+`/pigsty` redirects to `/farm`, so old links still work.
 
 ## 7. Auth
 
