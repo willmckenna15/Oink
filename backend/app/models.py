@@ -174,3 +174,65 @@ class WishlistItem(Base):
         String(36), ForeignKey("restaurants.id", ondelete="CASCADE"), primary_key=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+
+
+# --- The farm: sties, their pigs, and the queue at the door (spec §6.6) ------
+
+STY_ROLES = ("admin", "pig")
+JOIN_STATES = ("pending", "approved", "declined")
+
+# What a sty looks like from the farm, and what its pigs stand on inside it.
+# Two separate choices, so an igloo can sit on a beach if somebody wants that.
+STY_HUTS = ("meadow", "beach", "snow", "lava", "desert", "club")
+STY_GROUNDS = ("meadow", "beach", "snow", "lava", "desert", "club")
+
+
+class Sty(Base):
+    """A group of pigs. A sty is a *lens*, never a wall — it scopes what you're
+    shown, and never hides a place, a review or a count from anyone."""
+
+    __tablename__ = "sties"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(60), nullable=False, unique=True)
+    hut: Mapped[str] = mapped_column(String(16), nullable=False, default="meadow")
+    ground: Mapped[str] = mapped_column(String(16), nullable=False, default="meadow")
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+
+    members = relationship("StyMember", back_populates="sty", cascade="all, delete-orphan")
+
+
+class StyMember(Base):
+    """Role lives on the membership, not the user — being an admin of one sty
+    says nothing about any other."""
+
+    __tablename__ = "sty_members"
+    __table_args__ = (CheckConstraint(f"role in {STY_ROLES}", name="ck_sty_member_role"),)
+
+    sty_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sties.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), primary_key=True)
+    role: Mapped[str] = mapped_column(String(10), nullable=False, default="pig")
+    joined_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+
+    sty = relationship("Sty", back_populates="members")
+
+
+class StyJoinRequest(Base):
+    """Knocking on the door. Only one may be pending per person per sty, which
+    is enforced here rather than by the button — mashing it can't queue five."""
+
+    __tablename__ = "sty_join_requests"
+    __table_args__ = (CheckConstraint(f"state in {JOIN_STATES}", name="ck_join_state"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    sty_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sties.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    state: Mapped[str] = mapped_column(String(10), nullable=False, default="pending")
+    requested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    decided_by: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)

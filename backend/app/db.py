@@ -39,6 +39,7 @@ def init_db():
 
     Base.metadata.create_all(bind=engine)
     _add_missing_columns()
+    _seed_the_og_sty()
     _ensure_unique_place_ids()
 
 
@@ -97,3 +98,52 @@ def _add_missing_columns() -> None:
                 ddl = column.type.compile(dialect=engine.dialect)
                 conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {ddl}'))
                 logger.info("Added column %s.%s", table.name, column.name)
+
+
+# Whoever founded the place. These are real accounts on the deployed app; on a
+# fresh checkout they simply aren't there, and the migration copes rather than
+# inventing them — conjuring an account to satisfy a migration would put a
+# stranger in the sty.
+OG_STY_NAME = "The OG Sty"
+OG_STY_ADMINS = ("Princess CEO Piggy", "Glorious Chairman Oink", "Sir Piggiam")
+
+
+def _seed_the_og_sty() -> None:
+    """Put everyone who already exists into one sty, once.
+
+    Runs on every boot and does nothing once the sty exists. Afterwards The OG
+    Sty is an ordinary sty in every respect — renameable, restyleable, and its
+    members can leave.
+    """
+    from sqlalchemy.orm import Session
+
+    from .models import Sty, StyMember, User
+
+    with Session(engine) as db:
+        if db.query(Sty).filter(Sty.name == OG_STY_NAME).first():
+            return
+        users = db.query(User).order_by(User.created_at).all()
+        if not users:
+            return
+
+        sty = Sty(name=OG_STY_NAME, hut="meadow", ground="meadow", created_by=users[0].id)
+        db.add(sty)
+        db.flush()
+
+        wanted = {name.lower() for name in OG_STY_ADMINS}
+        admins = {
+            u.id for u in users
+            if u.display_name.lower() in wanted or u.username.lower() in wanted
+        }
+        # A sty must never be left without an admin, or nobody can ever approve
+        # anyone again. If none of the founders are on this instance, the
+        # earliest account holds the keys.
+        if not admins:
+            admins = {users[0].id}
+
+        for user in users:
+            db.add(StyMember(
+                sty_id=sty.id, user_id=user.id,
+                role="admin" if user.id in admins else "pig",
+            ))
+        db.commit()

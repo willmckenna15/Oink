@@ -116,6 +116,41 @@ class CreateReplyRequest(BaseModel):
     body: str = Field(min_length=1, max_length=600)
 
 
+class StySummary(BaseModel):
+    """A sty as it appears on the farm — enough to draw a hut and to know
+    whether it's yours."""
+
+    id: str
+    name: str
+    hut: str
+    ground: str
+    member_count: int
+    # Faces for the hut's plaque, and the viewer's own standing.
+    members: List[UserPublic] = []
+    is_member: bool = False
+    is_admin: bool = False
+    has_requested: bool = False
+    pending_count: int = 0
+
+
+class StyDetail(StySummary):
+    admins: List[UserPublic] = []
+    pending: List[UserPublic] = []
+
+
+class CreateStyRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
+    hut: str = "meadow"
+    ground: str = "meadow"
+    member_ids: List[str] = []
+
+
+class UpdateStyRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=60)
+    hut: Optional[str] = None
+    ground: Optional[str] = None
+
+
 class RestaurantSummary(BaseModel):
     """Shape used by map pins and the discover list (spec §6.3)."""
 
