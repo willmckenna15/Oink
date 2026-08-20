@@ -260,8 +260,18 @@ sty can crown somebody instead of being permanently outvoted by a big one.
 declines join requests — the queue sits at the top of the sty screen for admins
 and nowhere else, because it's a job to do and should be in the way — and can
 remove a pig, make another pig an admin, and change the hut and ground. A sty
-can't be left without an admin; the last one is blocked from leaving. The OG Sty
-is no different.
+can't be left without an admin; the last one is blocked from leaving. An admin
+can also knock the sty down, behind a confirm that names it — nothing a sty
+holds is unique to it, since places, oinks, reviews and shames all belong to the
+pigs, so demolishing one loses the grouping and nothing else. The OG Sty is no
+different: its admins are trusted with it the same way.
+
+The sty page's server read is best-effort, exactly as `serverFetch` promises —
+it exists to put the sty in the HTML, not to decide whether the page may exist.
+Calling `notFound()` on a null turned every transient hiccup, an API restart or
+a cold start, into a hard 404 on a sty that was there all along. Only a sty the
+API positively denies says it's gone; anything else leaves the screen waiting
+with a retry.
 
 **The feed and the map are scoped to your sties.** The feed is everything logged
 by anyone who shares a sty with you — a farm you could see all of would make

@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import type { StyDetail, User } from "@/lib/types";
 import PigAvatar from "@/components/pigs/PigAvatar";
 import BottomTabBar, { TabBarSpacer } from "@/components/BottomTabBar";
@@ -109,19 +109,25 @@ function layout(users: User[]): { spots: Spot[]; width: number; height: number }
 }
 
 export default function StyScreen({
+  styId,
   initialSty,
   initialMembers,
 }: {
-  initialSty: StyDetail;
+  styId: string;
+  /** May be null: the server read is best-effort, not a permission check. */
+  initialSty: StyDetail | null;
   initialMembers: User[] | null;
 }) {
   const router = useRouter();
-  const [sty, setSty] = useState<StyDetail>(initialSty);
+  const [sty, setSty] = useState<StyDetail | null>(initialSty);
+  const [gone, setGone] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [users, setUsers] = useState<User[] | null>(initialMembers);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [scale, setScale] = useState(0.7);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const framed = useRef(false);
@@ -132,11 +138,40 @@ export default function StyScreen({
   const pinch = useRef<{ dist: number; scale: number; fx: number; fy: number } | null>(null);
   const captured = useRef(new Set<number>());
 
-  const floor = useMemo(() => ground(sty.ground as GroundKind), [sty.ground]);
+  // Falls back to the meadow while the sty is still loading, so the field has
+  // a floor rather than flashing bare.
+  const floor = useMemo(() => ground((sty?.ground ?? "meadow") as GroundKind), [sty?.ground]);
 
   useEffect(() => {
-    api.styMembers(sty.id).then(setUsers).catch(() => {});
-  }, [sty.id]);
+    // Whatever the server managed, the client refetches — this is also what
+    // recovers the page when the server read came back empty.
+    let live = true;
+    api
+      .sty(styId)
+      .then((fresh) => {
+        if (!live) return;
+        setSty(fresh);
+        // Not a pig of this sty: the farm chains it shut and offers a join
+        // request, which is where this belongs.
+        if (!fresh.is_member) router.replace("/farm");
+      })
+      .catch((e) => {
+        if (!live) return;
+        // Only a sty the API positively denies is gone. Anything else — the
+        // API down, a dropped connection — leaves the screen waiting rather
+        // than announcing a demolition that never happened.
+        if (e instanceof ApiError && e.status === 404) setGone(true);
+        else setFailed(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [styId, router]);
+
+  useEffect(() => {
+    if (!sty?.is_member) return;
+    api.styMembers(styId).then(setUsers).catch(() => {});
+  }, [styId, sty?.is_member]);
 
   const scaleRef = useRef(scale);
   const panRef = useRef(pan);
@@ -317,7 +352,49 @@ export default function StyScreen({
   async function act(fn: () => Promise<StyDetail>) {
     const next = await fn();
     setSty(next);
-    api.styMembers(sty.id).then(setUsers).catch(() => {});
+    api.styMembers(styId).then(setUsers).catch(() => {});
+  }
+
+  async function demolish() {
+    await api.deleteSty(styId);
+    router.replace("/farm");
+  }
+
+  if (gone) {
+    return (
+      <>
+        <main className="grid min-h-[60vh] place-items-center px-6">
+          <div className="grid justify-items-center gap-2">
+            <p className="font-display text-lg font-bold">no sty here</p>
+            <p className="micro text-center">it may have been knocked down.</p>
+            <Link href="/farm" className="btn-primary mt-1 text-sm">back to the farm</Link>
+          </div>
+        </main>
+        <TabBarSpacer />
+        <BottomTabBar />
+      </>
+    );
+  }
+
+  if (!sty) {
+    return (
+      <>
+        <main className="px-3 pt-6">
+          {failed ? (
+            <div className="grid justify-items-center gap-2 py-16">
+              <p className="font-display text-lg font-bold">couldn&apos;t reach the sty</p>
+              <button onClick={() => { setFailed(false); api.sty(styId).then(setSty).catch(() => setFailed(true)); }}
+                className="btn-primary text-sm">try again</button>
+              <Link href="/farm" className="micro underline">back to the farm</Link>
+            </div>
+          ) : (
+            <Spinner label="finding the sty…" />
+          )}
+        </main>
+        <TabBarSpacer />
+        <BottomTabBar />
+      </>
+    );
   }
 
   return (
@@ -540,6 +617,33 @@ export default function StyScreen({
                 </div>
               );
             })}
+          </section>
+
+          {/* Last, and behind a second tap. Knocking a sty down can't be undone,
+              and the confirm names it so you can see which one you're on. */}
+          <section className="grid gap-1.5 border-t-2 border-oat-deep pt-3">
+            <p className="micro">knock it down</p>
+            {confirmDelete ? (
+              <div className="grid gap-1.5">
+                <p className="text-sm">
+                  delete <span className="font-bold">{sty.name}</span> for all{" "}
+                  {sty.member_count} pigs? the places everyone logged stay put — only the
+                  sty goes.
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmDelete(false)} className="btn-plain flex-1 text-sm">
+                    keep it
+                  </button>
+                  <button onClick={demolish} className="btn-primary flex-1 text-sm">
+                    delete it
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="btn-plain w-full text-sm">
+                delete this sty
+              </button>
+            )}
           </section>
         </div>
       </Sheet>

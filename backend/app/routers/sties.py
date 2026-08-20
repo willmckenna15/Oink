@@ -286,6 +286,24 @@ def remove_member(
     return get_sty(sty_id, db, viewer)
 
 
+@router.delete("/{sty_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sty(sty_id: str, db: Session = Depends(get_db), viewer: User = Depends(get_current_user)):
+    """Knock a sty down. Admins only.
+
+    The OG Sty is no different from any other, so it can go too — its admins
+    are trusted with it the same way. Nothing a sty holds is unique to it:
+    places, oinks, reviews and shames all belong to the pigs, so demolishing
+    one loses the grouping and nothing else. Members and any outstanding join
+    requests go with it, since neither means anything without the sty.
+    """
+    _sty_or_404(db, sty_id)
+    _require_admin(db, sty_id, viewer.id)
+    db.query(StyMember).filter(StyMember.sty_id == sty_id).delete()
+    db.query(StyJoinRequest).filter(StyJoinRequest.sty_id == sty_id).delete()
+    db.query(Sty).filter(Sty.id == sty_id).delete()
+    db.commit()
+
+
 @router.post("/{sty_id}/members/{user_id}/admin", response_model=StyDetail)
 def promote(
     sty_id: str, user_id: str, db: Session = Depends(get_db), viewer: User = Depends(get_current_user)

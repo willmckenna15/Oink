@@ -103,6 +103,7 @@ export const api = {
     request<StyDetail>("/sties", { method: "POST", body: JSON.stringify(body) }),
   updateSty: (id: string, body: { name?: string; hut?: string; ground?: string }) =>
     request<StyDetail>(`/sties/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteSty: (id: string) => request<void>(`/sties/${id}`, { method: "DELETE" }),
   requestToJoin: (id: string) => request<StyDetail>(`/sties/${id}/requests`, { method: "POST" }),
   decideRequest: (id: string, userId: string, decision: "approve" | "decline") =>
     request<StyDetail>(`/sties/${id}/requests/${userId}/${decision}`, { method: "POST" }),
