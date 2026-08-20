@@ -21,7 +21,8 @@ from ..places import find_place_photo
 from ..db import SessionLocal
 from ..db import get_db
 from ..deps import get_current_user, get_optional_user
-from ..models import Reaction, Restaurant, RestaurantImage, User
+from .sties import sty_member_ids
+from ..models import Reaction, Recommendation, Restaurant, RestaurantImage, StyMember, User
 from ..schemas import ImageOut, RestaurantCreate, RestaurantDetail, RestaurantSummary, RestaurantUpdate
 from ..serializers import restaurant_detail, restaurant_summaries
 
@@ -37,8 +38,38 @@ def list_restaurants(
     category: Optional[List[str]] = Query(default=None),
     budget: Optional[List[str]] = Query(default=None),
     q: Optional[str] = Query(default=None),
+    sty: Optional[str] = Query(
+        default=None,
+        description="'mine' (every sty you're in), a sty id, or 'farm' for everyone",
+    ),
 ):
     stmt = select(Restaurant)
+
+    # Which pigs' logs count. The map's default lens is your sties; 'farm'
+    # widens it to everyone, and a sty id narrows it to that one. A sty you
+    # aren't in narrows to nothing rather than leaking its places.
+    scope_ids: Optional[List[str]] = None
+    if sty == "farm":
+        scope_ids = None
+    elif sty and sty != "mine":
+        scope_ids = list(
+            db.execute(
+                select(StyMember.user_id).where(StyMember.sty_id == sty)
+            ).scalars().all()
+        )
+        if viewer.id not in scope_ids:
+            scope_ids = []
+    else:
+        scope_ids = sty_member_ids(db, viewer.id)
+
+    if scope_ids is not None:
+        stmt = stmt.where(
+            Restaurant.id.in_(
+                select(Recommendation.restaurant_id).where(
+                    Recommendation.user_id.in_(scope_ids)
+                )
+            )
+        )
 
     if bbox:
         try:

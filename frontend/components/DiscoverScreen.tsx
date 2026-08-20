@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import type { Kind, PlaceSummary, User } from "@/lib/types";
+import type { Kind, PlaceSummary, StySummary, User } from "@/lib/types";
 import { BUDGETS, Budget } from "@/lib/pig";
 import { categoriesFor } from "@/lib/categories";
 import BottomTabBar from "@/components/BottomTabBar";
@@ -131,9 +131,21 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
     writeDiscoverView({ visited, kinds, budgets, categories, sort });
   }, [visited, kinds, budgets, categories, sort]);
 
-  const load = useCallback(() => {
-    api.places().then(setPlaces).catch(() => setPlaces([]));
+  /**
+   * Which sties' logs the map is showing. Unlike the other filters this one
+   * can't be applied on the client: a place logged only by a sty you're not in
+   * was never in the payload to begin with, and shouldn't be.
+   */
+  const [lens, setLens] = useState<string>("mine");
+  const [sties, setSties] = useState<StySummary[]>([]);
+
+  useEffect(() => {
+    api.sties().then((all) => setSties(all.filter((s) => s.is_member))).catch(() => {});
   }, []);
+
+  const load = useCallback(() => {
+    api.places({ sty: lens }).then(setPlaces).catch(() => setPlaces([]));
+  }, [lens]);
 
   useEffect(() => {
     // The server payload paints instantly, but it's a snapshot: anything
@@ -238,7 +250,8 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
   }, [categoriesByKind, kinds, ALL_KINDS]);
 
   const activeFilters =
-    kinds.length + budgets.length + categories.length + (visited === "all" ? 0 : 1);
+    kinds.length + budgets.length + categories.length + (visited === "all" ? 0 : 1) +
+    (lens === "mine" ? 0 : 1);
 
   function toggle<T>(list: T[], setList: (v: T[]) => void, value: T) {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -341,7 +354,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
               activeFilters ? "bg-plum text-oat" : "bg-cream"
             }`}
           >
-            Filters{activeFilters ? ` (${activeFilters})` : ""}
+            filters{activeFilters ? ` (${activeFilters})` : ""}
           </button>
         </div>
         {cityError && <p className="mt-1 px-1 text-xs font-bold text-rust">{cityError}</p>}
@@ -387,7 +400,7 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
                 activeFilters ? "bg-plum text-oat" : "bg-cream"
               }`}
             >
-              Filters{activeFilters ? ` (${activeFilters})` : ""}
+              filters{activeFilters ? ` (${activeFilters})` : ""}
             </button>
             <button
               type="button"
@@ -546,6 +559,44 @@ export default function DiscoverScreen({ initialPlaces }: { initialPlaces: Place
       {/* Filters */}
       <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="filters">
         <div className="space-y-4 pb-4">
+          <section>
+            <p className="mb-1.5 font-display text-sm font-bold">whose places?</p>
+            <div className="grid gap-1.5">
+              <div className="flex gap-2">
+                {(
+                  [
+                    ["mine", "All my sties"],
+                    ["farm", "The whole farm"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => setLens(value)}
+                    className={`btn flex-1 text-xs ${lens === value ? "bg-plum text-oat" : "bg-cream"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {sties.length > 1 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {sties.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => setLens(s.id)}
+                      className={`btn text-xs ${lens === s.id ? "bg-plum text-oat" : "bg-cream"}`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="micro mt-1.5">
+              the farm shows everywhere anyone has been, including sties you&apos;re not in
+            </p>
+          </section>
+
           <section>
             <p className="mb-1.5 font-display text-sm font-bold">been here?</p>
             <div className="flex gap-2">

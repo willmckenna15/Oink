@@ -1,7 +1,9 @@
 """Home feed — spec §5 / §6.2.
 
-Everyone with an account is in one shared friend circle (spec §15), so the feed
-is all activity from all users, newest first.
+The feed is your sties: everything logged by anyone who shares a sty with you,
+newest first. Not the whole farm — a farm you can see all of would make joining
+a sty pointless. Somebody in no sty at all still sees their own activity, so a
+new account's feed is never blank for want of a group.
 """
 
 from typing import Dict, List, Optional
@@ -14,6 +16,7 @@ from ..db import get_db
 from ..deps import get_current_user
 from ..models import Reaction, Recommendation, Reply, Restaurant, RestaurantImage, User
 from ..schemas import FeedItem, ImageOut
+from .sties import sty_member_ids
 from ..serializers import (
     RestaurantContext,
     last_logged_map,
@@ -37,13 +40,30 @@ def get_feed(
     # UNION across two differently-shaped tables and plenty at this scale.
     window = limit + offset
 
+    # Your sties, not the farm. Scoping here rather than after the merge means
+    # the window is filled with activity you can actually see — filtering a
+    # mixed page afterwards would hand back a short one.
+    circle = sty_member_ids(db, viewer.id)
+
     recs = (
-        db.execute(select(Recommendation).order_by(Recommendation.updated_at.desc()).limit(window))
+        db.execute(
+            select(Recommendation)
+            .where(Recommendation.user_id.in_(circle))
+            .order_by(Recommendation.updated_at.desc())
+            .limit(window)
+        )
         .scalars()
         .all()
     )
     reactions = (
-        db.execute(select(Reaction).order_by(Reaction.created_at.desc()).limit(window)).scalars().all()
+        db.execute(
+            select(Reaction)
+            .where(Reaction.user_id.in_(circle))
+            .order_by(Reaction.created_at.desc())
+            .limit(window)
+        )
+        .scalars()
+        .all()
     )
 
     entries = [(r.updated_at, "recommendation", r) for r in recs]
