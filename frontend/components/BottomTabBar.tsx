@@ -13,7 +13,7 @@ import { usePathname } from "next/navigation";
 export const TABS = [
   { href: "/", label: "feed", icon: FeedIcon },
   { href: "/discover", label: "discover", icon: MapIcon },
-  { href: "/pigsty", label: "pigsty", icon: StyIcon },
+  { href: "/farm", label: "farm", icon: FarmIcon },
   { href: "/profile/me", label: "you", icon: PigIcon },
 ];
 
@@ -92,14 +92,13 @@ function MapIcon() {
   );
 }
 
-/** Three heads over a fence rail — a crowd, not one pig. */
-function StyIcon() {
+/** Two huts on a hill — a farm is more than one sty. */
+function FarmIcon() {
   return (
-    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="7" cy="9" r="3.1" />
-      <circle cx="17" cy="9" r="3.1" />
-      <circle cx="12" cy="13.5" r="3.6" />
-      <path d="M3 19.5h18" strokeLinecap="round" />
+    <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <path d="M2.5 11.5 6.5 8l4 3.5V16h-8Z" />
+      <path d="M13 13.5 17.5 9.5l4.5 4V19h-9Z" />
+      <path d="M1.5 20.5h21" strokeLinecap="round" />
     </svg>
   );
 }

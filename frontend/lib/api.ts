@@ -8,6 +8,8 @@
  */
 import type {
   FeedItem,
+  StyDetail,
+  StySummary,
   ParsedLink,
   PlaceCandidate,
   PlaceDetail,
@@ -93,6 +95,22 @@ export const api = {
   // --- people ---
   users: () => request<User[]>("/users"),
 
+  // --- the farm ---
+  sties: () => request<StySummary[]>("/sties"),
+  sty: (id: string) => request<StyDetail>(`/sties/${id}`),
+  styMembers: (id: string) => request<User[]>(`/sties/${id}/members`),
+  createSty: (body: { name: string; hut: string; ground: string; member_ids: string[] }) =>
+    request<StyDetail>("/sties", { method: "POST", body: JSON.stringify(body) }),
+  updateSty: (id: string, body: { name?: string; hut?: string; ground?: string }) =>
+    request<StyDetail>(`/sties/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  requestToJoin: (id: string) => request<StyDetail>(`/sties/${id}/requests`, { method: "POST" }),
+  decideRequest: (id: string, userId: string, decision: "approve" | "decline") =>
+    request<StyDetail>(`/sties/${id}/requests/${userId}/${decision}`, { method: "POST" }),
+  removeFromSty: (id: string, userId: string) =>
+    request<StyDetail>(`/sties/${id}/members/${userId}`, { method: "DELETE" }),
+  promoteInSty: (id: string, userId: string) =>
+    request<StyDetail>(`/sties/${id}/members/${userId}/admin`, { method: "POST" }),
+
   // --- replies ---
   addReply: (placeId: string, recommendationId: string, body: string) =>
     request<PlaceDetail>(`/restaurants/${placeId}/recommendations/${recommendationId}/replies`, {
@@ -110,11 +128,12 @@ export const api = {
 
   // --- places ---
   places: (
-    filters: { bbox?: string; kind?: string[]; category?: string[]; budget?: string[]; q?: string } = {}
+    filters: { bbox?: string; kind?: string[]; category?: string[]; budget?: string[]; q?: string; sty?: string } = {}
   ) => {
     const params = new URLSearchParams();
     if (filters.bbox) params.set("bbox", filters.bbox);
     if (filters.q) params.set("q", filters.q);
+    if (filters.sty) params.set("sty", filters.sty);
     filters.kind?.forEach((k) => params.append("kind", k));
     filters.category?.forEach((c) => params.append("category", c));
     filters.budget?.forEach((b) => params.append("budget", b));

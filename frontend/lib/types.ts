@@ -55,6 +55,27 @@ export type PlaceSummary = {
   added_by_me: boolean;
 };
 
+export type StySummary = {
+  id: string;
+  name: string;
+  hut: string;
+  ground: string;
+  member_count: number;
+  /** Faces for the hut's plaque — three at most. */
+  members: User[];
+  is_member: boolean;
+  is_admin: boolean;
+  has_requested: boolean;
+  /** Only ever non-zero for an admin of that sty. */
+  pending_count: number;
+};
+
+export type StyDetail = StySummary & {
+  admins: User[];
+  /** Empty unless you're an admin — the queue is an admin's business. */
+  pending: User[];
+};
+
 export type Reply = {
   id: string;
   user: User;
