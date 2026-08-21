@@ -444,30 +444,32 @@ export function faceItem(face: string, outline: string): ReactNode {
        */
       return (
         <g>
-          {/* Body, flat where it enters the mouth. */}
+          {/* Body, flat where it enters the mouth. It grows leftward: the
+              mouth end stays put so a bigger cigar still meets the face in the
+              same place. */}
           <path
-            d="M44 65.8 h13.5 v4.2 h-13.5 Z"
+            d="M42 63.2 h15.5 v5 h-15.5 Z"
             fill="#8A6141"
+            stroke={INK}
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+          <path d="M53 63.2 v5" stroke={INK} strokeWidth="1.2" opacity="0.5" />
+          {/* The lit end: a rounded cap, an ember inside it. */}
+          <path
+            d="M42 63.2 h-1.9 a2.5 2.5 0 0 0 0 5 h1.9 Z"
+            fill="#E8632A"
             stroke={INK}
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
-          <path d="M53 65.8 v4.2" stroke={INK} strokeWidth="1.1" opacity="0.5" />
-          {/* The lit end: a rounded cap, an ember inside it. */}
-          <path
-            d="M44 65.8 h-1.6 a2.1 2.1 0 0 0 0 4.2 h1.6 Z"
-            fill="#E8632A"
-            stroke={INK}
-            strokeWidth="1.4"
-            strokeLinejoin="round"
-          />
-          <circle cx="43.2" cy="67.9" r="0.9" fill="#FFD36A" />
+          <circle cx="41" cy="65.7" r="1.05" fill="#FFD36A" />
           {/* Smoke, off the ember and up. */}
           <path
-            d="M42.6 64.6 q-2.6 -2.4 0 -4.8 q2.6 -2.4 0 -4.8 q-2 -1.9 -0.5 -3.6"
+            d="M40.6 61.9 q-2.8 -2.5 0 -5 q2.8 -2.5 0 -5 q-2.1 -2 -0.5 -3.8"
             fill="none"
             stroke={INK}
-            strokeWidth="1.1"
+            strokeWidth="1.15"
             strokeLinecap="round"
             opacity="0.38"
           />
