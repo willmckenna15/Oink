@@ -448,25 +448,25 @@ export function faceItem(face: string, outline: string): ReactNode {
               mouth end stays put so a bigger cigar still meets the face in the
               same place. */}
           <path
-            d="M42 63.2 h15.5 v5 h-15.5 Z"
+            d="M44 63.2 h15.5 v5 h-15.5 Z"
             fill="#8A6141"
             stroke={INK}
             strokeWidth="1.6"
             strokeLinejoin="round"
           />
-          <path d="M53 63.2 v5" stroke={INK} strokeWidth="1.2" opacity="0.5" />
+          <path d="M55 63.2 v5" stroke={INK} strokeWidth="1.2" opacity="0.5" />
           {/* The lit end: a rounded cap, an ember inside it. */}
           <path
-            d="M42 63.2 h-1.9 a2.5 2.5 0 0 0 0 5 h1.9 Z"
+            d="M44 63.2 h-1.9 a2.5 2.5 0 0 0 0 5 h1.9 Z"
             fill="#E8632A"
             stroke={INK}
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
-          <circle cx="41" cy="65.7" r="1.05" fill="#FFD36A" />
+          <circle cx="43" cy="65.7" r="1.05" fill="#FFD36A" />
           {/* Smoke, off the ember and up. */}
           <path
-            d="M40.6 61.9 q-2.8 -2.5 0 -5 q2.8 -2.5 0 -5 q-2.1 -2 -0.5 -3.8"
+            d="M42.6 61.9 q-2.8 -2.5 0 -5 q2.8 -2.5 0 -5 q-2.1 -2 -0.5 -3.8"
             fill="none"
             stroke={INK}
             strokeWidth="1.15"
