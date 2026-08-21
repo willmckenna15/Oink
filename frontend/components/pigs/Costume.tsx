@@ -269,12 +269,6 @@ export function costumeParts(costume: string, outline: string, skin = "#EFAFC0")
           </>
         ),
         overArms: <path d="M44 63 q21 10 42 0 q-7 10 -21 10 q-14 0 -21 -10 Z" fill="#1F1C22" {...s} />,
-        front: (
-          <g {...s}>
-            <rect x="84" y="82" width="26" height="19" rx="9" fill={RUST} transform="rotate(-18 97 91)" />
-            <rect x="70" y="66" width="7" height="24" rx="2" fill="#6B4A34" transform="rotate(-18 73 78)" />
-          </g>
-        ),
       };
 
     case "chef":
@@ -398,7 +392,13 @@ export function costumeParts(costume: string, outline: string, skin = "#EFAFC0")
   }
 }
 
-/** Face items — their own slot, so sunglasses can be worn under a hat. */
+/**
+ * Face items — their own slot, so sunglasses can be worn under a hat.
+ *
+ * More than one can be worn at a time: specs and a moustache and a cigar are
+ * three separate things on three parts of a face, and there's no reason picking
+ * one should take the others off. They're drawn in the order chosen.
+ */
 export function faceItem(face: string, outline: string): ReactNode {
   switch (face) {
     case "shades":
@@ -429,6 +429,48 @@ export function faceItem(face: string, outline: string): ReactNode {
         <g stroke={INK} strokeWidth="2.2">
           <path d="M44 36 q22 -5 42 2" fill="none" />
           <rect x="46" y="38" width="17" height="13" rx="3" fill={INK} />
+        </g>
+      );
+    case "cigar":
+      /**
+       * Held in the corner of the mouth, pointing left.
+       *
+       * Face items are drawn in head space and land over the snout, which is
+       * the only landmark down here — no mouth is drawn on these pigs, so the
+       * mouth is read as the snout's lower edge. The cigar's near end tucks a
+       * little way under that edge, which is what makes it look held rather
+       * than stuck to the side of the face; an earlier version stopped level
+       * with the snout and read as growing out of its flank.
+       */
+      return (
+        <g>
+          {/* Body, flat where it enters the mouth. */}
+          <path
+            d="M44 65.8 h13.5 v4.2 h-13.5 Z"
+            fill="#8A6141"
+            stroke={INK}
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M53 65.8 v4.2" stroke={INK} strokeWidth="1.1" opacity="0.5" />
+          {/* The lit end: a rounded cap, an ember inside it. */}
+          <path
+            d="M44 65.8 h-1.6 a2.1 2.1 0 0 0 0 4.2 h1.6 Z"
+            fill="#E8632A"
+            stroke={INK}
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
+          <circle cx="43.2" cy="67.9" r="0.9" fill="#FFD36A" />
+          {/* Smoke, off the ember and up. */}
+          <path
+            d="M42.6 64.6 q-2.6 -2.4 0 -4.8 q2.6 -2.4 0 -4.8 q-2 -1.9 -0.5 -3.6"
+            fill="none"
+            stroke={INK}
+            strokeWidth="1.1"
+            strokeLinecap="round"
+            opacity="0.38"
+          />
         </g>
       );
     case "moustache":

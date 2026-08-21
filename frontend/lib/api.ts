@@ -6,6 +6,7 @@
  * which is also how middleware.ts can gate routes without its own auth call.
  * Every request therefore needs `credentials: "include"`.
  */
+import type { PigConfig } from "@/lib/pig";
 import type {
   FeedItem,
   StyDetail,
@@ -240,6 +241,6 @@ export const api = {
 
   userPlaces: (identifier: string) => request<PlaceSummary[]>(`/users/${identifier}/recommendations`),
 
-  updateMe: (payload: { display_name?: string; pig_avatar_config?: Record<string, string> }) =>
+  updateMe: (payload: { display_name?: string; pig_avatar_config?: PigConfig }) =>
     request<User>("/users/me", { method: "PATCH", body: JSON.stringify(payload) }),
 };

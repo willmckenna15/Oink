@@ -24,7 +24,7 @@
  * The snout and its two nostrils are drawn at every size — the most
  * recognisably pig feature, and without them the avatar reads as a blob.
  */
-import { useId } from "react";
+import { Fragment, useId } from "react";
 import Held from "@/components/pigs/Held";
 import {
   PIG_BACKGROUNDS,
@@ -94,7 +94,16 @@ export default function PigAvatar({
   // Costume parts are drawn in normalised space and scaled about the body or
   // head centre; the garment shell comes off the real silhouette (below).
   const dress = costumeParts(cfg.costume, OUTLINE, p.mid);
-  const specs = faceItem(cfg.face, OUTLINE);
+  // Several at a time: specs, a moustache and a cigar sit on three different
+  // parts of a face, so picking one shouldn't take the others off. Drawn in the
+  // order they were chosen.
+  const specs = cfg.face.length ? (
+    <>
+      {cfg.face.map((f) => (
+        <Fragment key={f}>{faceItem(f, OUTLINE)}</Fragment>
+      ))}
+    </>
+  ) : null;
   // Drawn in the same normalised head space as the costume headwear: the head
   // is an ellipse centred (65, 48), rx 27.5.
   const hair = hairParts(cfg.hair, cfg.hairColor, OUTLINE);

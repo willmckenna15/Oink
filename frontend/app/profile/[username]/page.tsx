@@ -432,8 +432,11 @@ function PigCustomiser({
           }
           format={(v) => COSTUME_LABELS[v as Costume]}
         />
-        <Picker
+        {/* The one slot you can wear several of at once — specs, a moustache
+            and a cigar are three different parts of a face. */}
+        <MultiPicker
           label="face"
+          hint="pick as many as you like"
           options={[...PIG_FACES]}
           value={cfg.face}
           onChange={(v) => setCfg({ ...cfg, face: v })}
@@ -541,6 +544,56 @@ function Pages({ children }: { children: React.ReactNode }) {
       </div>
       <p className="micro mt-1 text-center">swipe for more</p>
     </div>
+  );
+}
+
+/**
+ * A Picker that keeps a set rather than a single choice. Tapping a chosen item
+ * takes it off again, and `none` is the empty set rather than an option of its
+ * own — an explicit "none" chip in a multi-select is a thing you can tick
+ * alongside the others, which reads as a contradiction.
+ */
+function MultiPicker({
+  label,
+  hint,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (opt: string) =>
+    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+
+  return (
+    <section>
+      <p className="mb-1.5 font-display text-sm font-bold">
+        {label}
+        {hint && <span className="micro ml-1.5 font-normal">{hint}</span>}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={() => onChange([])}
+          className={`tag lowercase ${value.length === 0 ? "bg-plum text-oat" : ""}`}
+        >
+          none
+        </button>
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => toggle(opt)}
+            aria-pressed={value.includes(opt)}
+            className={`tag lowercase ${value.includes(opt) ? "bg-plum text-oat" : ""}`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

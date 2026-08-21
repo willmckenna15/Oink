@@ -329,7 +329,14 @@ export const COSTUME_HAT: Partial<Record<Costume, string>> = {
 };
 
 /** Face items are their own slot so they stack with a hat. */
-export const PIG_FACES = ["none", "shades", "specs", "monocle", "eyepatch", "moustache"] as const;
+export const PIG_FACES = [
+  "shades",
+  "specs",
+  "monocle",
+  "eyepatch",
+  "moustache",
+  "cigar",
+] as const;
 
 /**
  * Companions (spec §9.4) — the puffle role, and deliberately just the one. A
@@ -427,7 +434,9 @@ export type PigConfig = {
   accessory?: string;
   background?: string;
   costume?: string;
-  face?: string;
+  /** Several at once. A lone string is still read, for configs saved before
+   *  the slot took more than one. */
+  face?: string | string[];
   companion?: string;
   truffle?: string;
   held?: string;
@@ -435,14 +444,14 @@ export type PigConfig = {
   hairColor?: string;
 };
 
-export const DEFAULT_PIG: Required<PigConfig> = {
+export const DEFAULT_PIG: NormalisedPig = {
   species: "pig",
   color: "pink",
   hat: "none",
   accessory: "none",
   background: "oat",
   costume: "none",
-  face: "none",
+  face: [],
   companion: "none",
   truffle: "burgundy",
   held: "none",
@@ -450,7 +459,10 @@ export const DEFAULT_PIG: Required<PigConfig> = {
   hairColor: "blonde",
 };
 
-export function normalisePig(config: PigConfig | undefined | null): Required<PigConfig> {
+/** A config with every slot filled in — face as the list it really is. */
+export type NormalisedPig = Omit<Required<PigConfig>, "face"> & { face: string[] };
+
+export function normalisePig(config: PigConfig | undefined | null): NormalisedPig {
   const c = config ?? {};
   const species = ((PIG_SPECIES as readonly string[]).includes(c.species ?? "")
     ? c.species
@@ -468,7 +480,7 @@ export function normalisePig(config: PigConfig | undefined | null): Required<Pig
     // Unknown slot values fall back rather than throwing, so a config saved by a
     // newer build still renders on an older one instead of blanking the avatar.
     costume: pick(c.costume, PIG_COSTUMES, DEFAULT_PIG.costume),
-    face: pick(c.face, PIG_FACES, DEFAULT_PIG.face),
+    face: faces(c.face),
     companion: pick(c.companion, PIG_COMPANIONS, DEFAULT_PIG.companion),
     held: pick(c.held, PIG_HELD, DEFAULT_PIG.held),
     hair: pick(c.hair, PIG_HAIR, DEFAULT_PIG.hair),
@@ -479,6 +491,18 @@ export function normalisePig(config: PigConfig | undefined | null): Required<Pig
 
 function pick(value: string | undefined, allowed: readonly string[], fallback: string): string {
   return value && allowed.includes(value) ? value : fallback;
+}
+
+/**
+ * The face slot, however it was saved. Older configs hold a single string and
+ * used "none" to mean nothing, so both are read; anything unrecognised is
+ * dropped rather than throwing, so a config written by a newer build still
+ * renders on an older one instead of blanking the avatar.
+ */
+function faces(value: string | string[] | undefined): string[] {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  const known = new Set<string>(PIG_FACES);
+  return [...new Set(list.filter((f) => known.has(f)))];
 }
 
 // --- Price tiers (spec §9.2) ----------------------------------------------
