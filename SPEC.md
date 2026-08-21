@@ -252,9 +252,15 @@ bottom, the nightclub's ball and lasers stay overhead — because panning
 shouldn't sail the sea up into the sky. Dark floors put a patch of light under
 each pig, or a charcoal one disappears into the lava.
 
-**Every sty has its own throne and its own shame enclosure**, counted over that
-sty's members only. That is most of the point of splitting the farm up: a small
-sty can crown somebody instead of being permanently outvoted by a big one.
+**Every sty has its own throne and its own shame enclosure.** Both the
+candidates and the *votes* are that sty's: a pig's count is the oinks and shames
+its own members have left on the places that pig put on the map first. A throne
+decided by the whole farm would just install the farm's favourite in every sty
+at once, and the point of splitting the farm up was that each group makes up its
+own mind — a small sty can crown somebody instead of being permanently outvoted
+by a big one. Leaving the counts off isn't neutral either: they default to zero,
+so every sty came up with an empty throne and an empty enclosure however long
+the group had been oinking at each other.
 
 **Admins.** Whoever makes a sty is its first admin. An admin approves and
 declines join requests — the queue sits at the top of the sty screen for admins
@@ -452,7 +458,13 @@ never overrides a hat already chosen. The slots stay independent on purpose: a
 viking helmet over a princess gown is a legitimate outcome, and that freedom is
 where the humour lives.
 
-The face slot is separate from headwear so sunglasses can be worn under a hat.
+The face slot is separate from headwear so sunglasses can be worn under a hat,
+and it's the one slot that takes **several at once** — specs, a moustache and a
+cigar sit on three different parts of a face, so picking one shouldn't take the
+others off. It's stored as a list; a lone string is still read, so configs saved
+before the slot took more than one still render. In the picker `none` is the
+empty set rather than an option of its own, since a "none" chip you can tick
+alongside the others reads as a contradiction.
 
 **Hats that sit down over the ears hide them** rather than poking them through —
 a cap with two ears out the sides of it reads as a mistake, not a style. Cap,

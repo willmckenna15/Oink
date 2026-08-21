@@ -17,7 +17,13 @@ from ..db import get_db
 from ..deps import get_current_user
 from ..models import STY_GROUNDS, STY_HUTS, Sty, StyJoinRequest, StyMember, User
 from ..schemas import CreateStyRequest, StyDetail, StySummary, UpdateStyRequest, UserPublic
-from ..serializers import last_logged_map, og_oink_counts, places_logged_counts, user_public
+from ..serializers import (
+    last_logged_map,
+    og_oink_counts,
+    og_reaction_counts,
+    places_logged_counts,
+    user_public,
+)
 
 router = APIRouter(prefix="/sties", tags=["sties"])
 
@@ -46,8 +52,18 @@ def _admin_count(db: Session, sty_id: str) -> int:
     ).scalar_one()
 
 
-def _people(db: Session, ids: Sequence[str]) -> Dict[str, UserPublic]:
-    """Public shapes for a set of users, with the counts their avatars need."""
+def _people(
+    db: Session, ids: Sequence[str], voters: Optional[Sequence[str]] = None
+) -> Dict[str, UserPublic]:
+    """Public shapes for a set of users, with the counts their avatars need.
+
+    `voters` scopes the oinks and shames each pig has *received* to a set of
+    people. The sty screen passes that sty's members, so its throne and its
+    enclosure are decided by the pigs standing in it. Leaving these off — which
+    an earlier version did — isn't neutral: the fields default to zero, so every
+    sty came up with an empty throne and an empty enclosure however long the
+    group had been oinking at each other.
+    """
     ids = [i for i in dict.fromkeys(ids)]
     if not ids:
         return {}
@@ -55,8 +71,15 @@ def _people(db: Session, ids: Sequence[str]) -> Dict[str, UserPublic]:
     logged = places_logged_counts(db, ids)
     last = last_logged_map(db, ids)
     og = og_oink_counts(db, ids)
+    received = og_reaction_counts(db, ids, voters)
     return {
-        u.id: user_public(u, logged.get(u.id, 0), last.get(u.id), og.get(u.id, 0))
+        u.id: user_public(
+            u,
+            logged.get(u.id, 0),
+            last.get(u.id),
+            og.get(u.id, 0),
+            received.get(u.id, (0, 0)),
+        )
         for u in users
     }
 
@@ -144,7 +167,8 @@ def sty_members(sty_id: str, db: Session = Depends(get_db), viewer: User = Depen
     """Everyone in this sty — the crowd the field draws."""
     _sty_or_404(db, sty_id)
     rows = db.execute(select(StyMember).where(StyMember.sty_id == sty_id)).scalars().all()
-    people = _people(db, [r.user_id for r in rows])
+    member_ids = [r.user_id for r in rows]
+    people = _people(db, member_ids, voters=member_ids)
     return [people[r.user_id] for r in rows if r.user_id in people]
 
 

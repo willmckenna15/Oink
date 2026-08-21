@@ -97,7 +97,11 @@ def og_oink_counts(db: Session, user_ids: Sequence[str]) -> Dict[str, int]:
     return counts
 
 
-def og_reaction_counts(db: Session, user_ids: Sequence[str]) -> Dict[str, tuple]:
+def og_reaction_counts(
+    db: Session,
+    user_ids: Sequence[str],
+    from_ids: Optional[Sequence[str]] = None,
+) -> Dict[str, tuple]:
     """Oinks and shames *other people* have left on the places each user put on
     the map first.
 
@@ -106,17 +110,29 @@ def og_reaction_counts(db: Session, user_ids: Sequence[str]) -> Dict[str, tuple]
     for more here than adding thirty nobody goes back to. The creator's own
     reaction is excluded — adding a place auto-oinks it, so counting it would
     hand everyone a free vote for themselves.
+
+    `from_ids` narrows *who is voting*. Inside a sty the verdict has to be that
+    sty's, counted from its own members only: a throne decided by the whole farm
+    would just install the farm's favourite in every sty at once, and the point
+    of splitting the farm up was that each group gets to make up its own mind.
+    Omit it for the farm-wide number.
     """
     if not user_ids:
         return {}
     ids = list(user_ids)
+    where = [
+        Restaurant.created_by.in_(ids),
+        Reaction.user_id != Restaurant.created_by,
+    ]
+    if from_ids is not None:
+        voters = list(dict.fromkeys(from_ids))
+        if not voters:
+            return {uid: (0, 0) for uid in ids}
+        where.append(Reaction.user_id.in_(voters))
     rows = db.execute(
         select(Restaurant.created_by, Reaction.type, func.count())
         .join(Reaction, Reaction.restaurant_id == Restaurant.id)
-        .where(
-            Restaurant.created_by.in_(ids),
-            Reaction.user_id != Restaurant.created_by,
-        )
+        .where(*where)
         .group_by(Restaurant.created_by, Reaction.type)
     ).all()
 
