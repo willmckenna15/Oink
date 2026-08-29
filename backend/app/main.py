@@ -1,6 +1,8 @@
 """Oink API — FastAPI app, local-only in v1 (spec §0)."""
 
 import logging
+import os
+import sys
 from typing import Optional
 
 from fastapi import FastAPI
@@ -16,6 +18,29 @@ from .db import engine, init_db
 from .routers import auth, feed, places, restaurants, safety, social, sties, users
 
 logger = logging.getLogger("oink")
+
+
+def _configure_logging() -> None:
+    """Make the app's own logs visible.
+
+    Uvicorn configures its own loggers and nothing else, so `oink.*` ends up
+    with no handler and everything it writes disappears. That silently broke
+    the console mail backend — a reset link that goes nowhere at all, not even
+    to the log — and swallowed the migration warnings from db.py.
+
+    Only attach a handler if nothing upstream has: under gunicorn, or in tests,
+    the host's configuration should win.
+    """
+    app_logger = logging.getLogger("oink")
+    app_logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
+    if not app_logger.handlers and not logging.getLogger().handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("%(levelname)s:     [%(name)s] %(message)s"))
+        app_logger.addHandler(handler)
+    app_logger.propagate = True
+
+
+_configure_logging()
 
 app = FastAPI(
     title="Oink API",

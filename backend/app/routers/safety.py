@@ -36,6 +36,7 @@ from ..models import (
     WishlistItem,
 )
 from ..schemas import (
+    AccountOut,
     BlockOut,
     DeleteAccountRequest,
     ReportCreate,
@@ -52,6 +53,21 @@ def _as_public(db: Session, users: List[User]):
     counts = places_logged_counts(db, ids)
     last = last_logged_map(db, ids)
     return {u.id: user_public(u, counts.get(u.id, 0), last.get(u.id)) for u in users}
+
+
+# --- Your own account -------------------------------------------------------
+
+
+@router.get("/account", response_model=AccountOut)
+def my_account(db: Session = Depends(get_db), viewer: User = Depends(get_current_user)):
+    return AccountOut(
+        id=viewer.id,
+        username=viewer.username,
+        display_name=viewer.display_name,
+        email=viewer.email,
+        email_verified=viewer.email_verified_at is not None,
+        is_sty_admin=_is_any_sty_admin(db, viewer.id),
+    )
 
 
 # --- Blocking ---------------------------------------------------------------

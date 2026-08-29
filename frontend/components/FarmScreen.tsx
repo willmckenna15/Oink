@@ -19,6 +19,7 @@ import PigAvatar from "@/components/pigs/PigAvatar";
 import BottomTabBar, { TabBarSpacer } from "@/components/BottomTabBar";
 import { Spinner } from "@/components/ui";
 import NewStySheet from "@/components/NewStySheet";
+import ModerationQueue from "@/components/ModerationQueue";
 
 const CELL_W = 150;
 const CELL_H = 168;
@@ -117,6 +118,10 @@ export default function FarmScreen({ initialSties }: { initialSties: StySummary[
   const [query, setQuery] = useState("");
   const [mineOnly, setMineOnly] = useState(true);
   const [locked, setLocked] = useState<StySummary | null>(null);
+  // The reports queue only exists for people who administer a sty, so the way
+  // in only appears for them. Asked once, when the farm loads.
+  const [canModerate, setCanModerate] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [making, setMaking] = useState(false);
 
@@ -132,6 +137,12 @@ export default function FarmScreen({ initialSties }: { initialSties: StySummary[
 
   const load = () => api.sties().then(setSties).catch(() => {});
   useEffect(() => { load(); }, []);
+  // Whether to offer the reports queue. A failure here is not worth surfacing:
+  // the worst case is a button that isn't shown, and the API refuses anyone
+  // who shouldn't get in regardless.
+  useEffect(() => {
+    api.account().then((a) => setCanModerate(a.is_sty_admin)).catch(() => {});
+  }, []);
 
   const { spots, width, height } = useMemo(() => layout(sties ?? []), [sties]);
   const q = query.trim().toLowerCase();
@@ -270,7 +281,17 @@ export default function FarmScreen({ initialSties }: { initialSties: StySummary[
       <header className="sticky top-0 z-[900] bg-oat/95 px-3 pb-2 pt-3 backdrop-blur">
         <div className="flex items-baseline justify-between">
           <h1 className="wordmark text-3xl">farm</h1>
-          <span className="micro">{sties ? `${sties.length} sties` : ""}</span>
+          <div className="flex items-center gap-2">
+            {canModerate && (
+              <button
+                onClick={() => setQueueOpen(true)}
+                className="btn bg-cream px-3 py-1 text-xs"
+              >
+                Reports
+              </button>
+            )}
+            <span className="micro">{sties ? `${sties.length} sties` : ""}</span>
+          </div>
         </div>
         <label className="field mt-2 flex items-center gap-2 !py-1.5">
           <span aria-hidden className="text-ink-soft">⌕</span>
@@ -403,6 +424,8 @@ export default function FarmScreen({ initialSties }: { initialSties: StySummary[
           </div>
         </div>
       )}
+
+      <ModerationQueue open={queueOpen} onClose={() => setQueueOpen(false)} />
 
       <NewStySheet open={making} onClose={() => setMaking(false)} onMade={(sty) => { setMaking(false); load(); router.push(`/farm/${sty.id}`); }} />
 

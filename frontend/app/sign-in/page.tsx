@@ -14,8 +14,13 @@ function SignInForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The forgot-password panel replaces the form rather than sitting under it —
+  // somebody who can't get in doesn't need the thing that isn't working.
+  const [forgot, setForgot] = useState(false);
+  const [sent, setSent] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,7 +29,7 @@ function SignInForm() {
     try {
       const { user } =
         mode === "signup"
-          ? await api.signup(username, password, displayName || username)
+          ? await api.signup(username, password, displayName || username, email)
           : await api.login(username, password);
       // Queue the explainer for anyone who hasn't seen it on this device.
       queueIntroIfNew(user.id);
@@ -53,6 +58,29 @@ function SignInForm() {
         </p>
       </div>
 
+      {forgot ? (
+        <ForgotPanel
+          sent={sent}
+          busy={busy}
+          error={error}
+          onBack={() => {
+            setForgot(false);
+            setSent(false);
+            setError(null);
+          }}
+          onSubmit={async (address) => {
+            setError(null);
+            setBusy(true);
+            try {
+              await api.forgotPassword(address);
+              setSent(true);
+            } catch (err) {
+              setError(err instanceof ApiError ? err.message : "Something went wrong");
+            }
+            setBusy(false);
+          }}
+        />
+      ) : (
       <form onSubmit={submit} className="card w-full space-y-3 p-4">
         <div className="flex gap-2">
           {(["login", "signup"] as const).map((m) => (
@@ -86,15 +114,35 @@ function SignInForm() {
         </label>
 
         {mode === "signup" && (
-          <label className="block">
-            <span className="font-display text-sm font-bold">display name</span>
-            <input
-              className="field mt-1 bg-oat"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="what friends call you"
-            />
-          </label>
+          <>
+            <label className="block">
+              <span className="font-display text-sm font-bold">display name</span>
+              <input
+                className="field mt-1 bg-oat"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="what friends call you"
+              />
+            </label>
+
+            <label className="block">
+              <span className="font-display text-sm font-bold">email</span>
+              <input
+                className="field mt-1 bg-oat"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="email"
+                placeholder="so you can get back in"
+                required
+              />
+              <span className="mt-1 block text-xs text-ink-soft">
+                Only ever used to get you back into your account.
+              </span>
+            </label>
+          </>
         )}
 
         <label className="block">
@@ -115,9 +163,96 @@ function SignInForm() {
           {busy ? "…" : mode === "login" ? "Let me in" : "Make me a pig"}
         </button>
 
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={() => {
+              setForgot(true);
+              setError(null);
+            }}
+            className="w-full text-center text-xs text-ink-soft underline"
+          >
+            Forgotten your password?
+          </button>
+        )}
+
         <p className="text-center text-xs text-ink-soft">stays signed in for 30 days</p>
       </form>
+      )}
     </main>
+  );
+}
+
+/**
+ * Asking for a reset link.
+ *
+ * The API deliberately answers the same way whether or not the address has an
+ * account, so that it can't be used to find out who's a member. The wording
+ * here has to hold that line: "if there's an account", never "we've sent you".
+ */
+function ForgotPanel({
+  sent,
+  busy,
+  error,
+  onBack,
+  onSubmit,
+}: {
+  sent: boolean;
+  busy: boolean;
+  error: string | null;
+  onBack: () => void;
+  onSubmit: (email: string) => void;
+}) {
+  const [address, setAddress] = useState("");
+
+  if (sent) {
+    return (
+      <div className="card w-full space-y-3 p-4 text-center">
+        <p className="font-display text-lg font-bold">Check your email</p>
+        <p className="text-sm text-ink-soft">
+          If there&apos;s an account for <strong className="text-ink">{address}</strong>, a
+          link to set a new password is on its way. It works once, and lasts two hours.
+        </p>
+        <button type="button" onClick={onBack} className="btn w-full bg-oat">
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="card w-full space-y-3 p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(address.trim());
+      }}
+    >
+      <p className="font-display text-lg font-bold">Forgotten your password?</p>
+      <p className="text-sm text-ink-soft">
+        Put in the address you signed up with and we&apos;ll send you a link to set a new one.
+      </p>
+      <label className="block">
+        <span className="font-display text-sm font-bold">email</span>
+        <input
+          className="field mt-1 bg-oat"
+          type="email"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="email"
+          required
+        />
+      </label>
+      {error && <ErrorNote message={error} />}
+      <button type="submit" className="btn-primary w-full text-lg" disabled={busy}>
+        {busy ? "…" : "Send me a link"}
+      </button>
+      <button type="button" onClick={onBack} className="w-full text-center text-xs text-ink-soft underline">
+        Back to sign in
+      </button>
+    </form>
   );
 }
 

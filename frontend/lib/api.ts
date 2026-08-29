@@ -8,7 +8,11 @@
  */
 import type { PigConfig } from "@/lib/pig";
 import type {
+  Account,
+  BlockEntry,
   FeedItem,
+  Report,
+  ReportTarget,
   StyDetail,
   StySummary,
   ParsedLink,
@@ -77,10 +81,10 @@ export function googlePhotoSrc(placeId: string): string {
 
 export const api = {
   // --- auth ---
-  signup: (username: string, password: string, display_name: string) =>
+  signup: (username: string, password: string, display_name: string, email?: string) =>
     request<{ token: string; user: User }>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ username, password, display_name }),
+      body: JSON.stringify({ username, password, display_name, email: email || undefined }),
     }),
 
   login: (username: string, password: string) =>
@@ -92,6 +96,44 @@ export const api = {
   me: () => request<User>("/auth/me"),
 
   logout: () => request<void>("/auth/logout", { method: "POST" }),
+
+  // --- getting back in, and getting out ---
+  // forgotPassword always resolves, whether or not the address is known — the
+  // API refuses to say, so the UI must not imply otherwise.
+  forgotPassword: (email: string) =>
+    request<void>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) =>
+    request<void>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
+  changePassword: (current_password: string, new_password: string) =>
+    request<void>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+  setEmail: (email: string) =>
+    request<void>("/auth/email", { method: "POST", body: JSON.stringify({ email }) }),
+  verifyEmail: (token: string) =>
+    request<void>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+  logoutEverywhere: () => request<void>("/auth/logout-everywhere", { method: "POST" }),
+  deleteAccount: (password: string) =>
+    request<void>("/account/delete", { method: "POST", body: JSON.stringify({ password }) }),
+
+  // --- blocking and reporting ---
+  account: () => request<Account>("/account"),
+  blocks: () => request<BlockEntry[]>("/blocks"),
+  block: (userId: string) => request<void>(`/blocks/${userId}`, { method: "PUT" }),
+  unblock: (userId: string) => request<void>(`/blocks/${userId}`, { method: "DELETE" }),
+  report: (target_type: ReportTarget, target_id: string, reason: string) =>
+    request<Report>("/reports", {
+      method: "POST",
+      body: JSON.stringify({ target_type, target_id, reason }),
+    }),
+  reports: (state: "open" | "actioned" | "dismissed" = "open") =>
+    request<Report[]>(`/reports?state=${state}`),
+  resolveReport: (id: string, state: "actioned" | "dismissed", note?: string) =>
+    request<void>(`/reports/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ state, note: note || undefined }),
+    }),
 
   // --- people ---
   users: () => request<User[]>("/users"),

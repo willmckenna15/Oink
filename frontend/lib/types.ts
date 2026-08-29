@@ -147,3 +147,35 @@ export type PlaceCandidate = {
   lat: number;
   lng: number;
 };
+
+
+/** Somebody you've muted. The block hides content both ways. */
+export type BlockEntry = {
+  user: User;
+  created_at: string;
+};
+
+export type ReportTarget = "recommendation" | "reply" | "restaurant" | "user";
+
+export type Report = {
+  id: string;
+  reporter: User;
+  target_type: ReportTarget;
+  target_id: string;
+  reason: string;
+  state: "open" | "actioned" | "dismissed";
+  created_at: string;
+  resolved_at?: string | null;
+  resolution_note?: string | null;
+};
+
+/** Your own account. Email lives here rather than on User, because it is
+ *  nobody else's business and User is handed out in every list. */
+export type Account = {
+  id: string;
+  username: string;
+  display_name: string;
+  email?: string | null;
+  email_verified: boolean;
+  is_sty_admin: boolean;
+};

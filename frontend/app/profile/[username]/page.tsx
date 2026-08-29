@@ -39,6 +39,8 @@ import {
 } from "@/lib/pig";
 import PigAvatar from "@/components/pigs/PigAvatar";
 import HowItWorks from "@/components/HowItWorks";
+import AccountSettings from "@/components/AccountSettings";
+import ReportButton from "@/components/ReportButton";
 import PlaceListCard from "@/components/PlaceListCard";
 import BottomTabBar, { TabBarSpacer } from "@/components/BottomTabBar";
 import { EmptyState, PageHeader, Sheet, Spinner } from "@/components/ui";
@@ -50,6 +52,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [places, setPlaces] = useState<PlaceSummary[] | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   // The place pending removal from this person's log, if any.
   const [unlogging, setUnlogging] = useState<PlaceSummary | null>(null);
   const [unlogBusy, setUnlogBusy] = useState(false);
@@ -93,16 +96,26 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             >
               i
             </button>
-            {isMe && (
-              <button
-                onClick={async () => {
-                  await api.logout();
-                  window.location.href = "/sign-in";
-                }}
-                className="btn bg-cream px-3 py-2 text-xs"
-              >
-                Sign out
-              </button>
+            {isMe ? (
+              <>
+                <button
+                  onClick={() => setAccountOpen(true)}
+                  className="btn bg-cream px-3 py-2 text-xs"
+                >
+                  Account
+                </button>
+                <button
+                  onClick={async () => {
+                    await api.logout();
+                    window.location.href = "/sign-in";
+                  }}
+                  className="btn bg-cream px-3 py-2 text-xs"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <ReportButton targetType="user" targetId={user.id} name={user.display_name} />
             )}
           </div>
         }
@@ -299,6 +312,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       </Sheet>
 
       <HowItWorks open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      <AccountSettings open={accountOpen} onClose={() => setAccountOpen(false)} />
     </>
   );
 }

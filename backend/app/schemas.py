@@ -355,3 +355,18 @@ class ReportOut(BaseModel):
 class BlockOut(BaseModel):
     user: UserPublic
     created_at: datetime
+
+
+class AccountOut(BaseModel):
+    """The signed-in user's own account details.
+
+    Separate from UserPublic on purpose: an email address is nobody else's
+    business, so it must not ride along on the object every user list returns.
+    """
+
+    id: str
+    username: str
+    display_name: str
+    email: Optional[str] = None
+    email_verified: bool = False
+    is_sty_admin: bool = False

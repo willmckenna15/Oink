@@ -20,6 +20,7 @@ import PhotoPicker from "@/components/PhotoPicker";
 import EditPlaceSheet from "@/components/EditPlaceSheet";
 import BottomTabBar, { TabBarSpacer } from "@/components/BottomTabBar";
 import { EmptyState, ErrorNote, KIND_LABELS, PageHeader, Sheet, Spinner, timeAgo } from "@/components/ui";
+import ReportButton from "@/components/ReportButton";
 
 export default function PlacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -243,6 +244,14 @@ export default function PlacePage({ params }: { params: Promise<{ id: string }> 
                   </Link>
                   <p className="text-xs text-ink-soft">{timeAgo(rec.updated_at)}</p>
                 </div>
+                {viewer && rec.user.id !== viewer.id && (
+                  <ReportButton
+                    targetType="recommendation"
+                    targetId={rec.id}
+                    name={rec.user.display_name}
+                    compact
+                  />
+                )}
               </div>
 
               <p className="text-sm leading-snug">{rec.review_text}</p>

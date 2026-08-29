@@ -10,12 +10,27 @@ import type { NextRequest } from "next/server";
  * forged or expired cookie gets a 401 from the backend regardless.
  */
 const COOKIE_NAME = "oink_session";
+
+/** Signed out only: a signed-in visitor gets sent to the feed instead. */
 const PUBLIC_PATHS = ["/sign-in"];
+
+/**
+ * Open either way, and gated neither way.
+ *
+ * These are reached from a link in an email, so they have to work for somebody
+ * with no session — the person resetting a password is by definition locked
+ * out. They also have to work for somebody *with* one, or confirming your
+ * address while already signed in bounces you to the feed without confirming
+ * anything. The tokens are the authentication here, and the API checks them.
+ */
+const OPEN_PATHS = ["/reset-password", "/verify-email"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(COOKIE_NAME);
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+
+  if (OPEN_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
   if (!hasSession && !isPublic) {
     const url = request.nextUrl.clone();
