@@ -76,10 +76,61 @@ export default function HowItWorks({ open, onClose }: { open: boolean; onClose: 
         <section className="space-y-2">
           <h3 className="font-display text-sm font-extrabold">it works both ways</h3>
           <p className="text-sm text-ink-soft">
-            Go a fortnight without logging anywhere and your pig drops a tier. Keep it up and
+            Go a month without logging anywhere and your pig drops a tier. Keep it up and
             it starves all the way down to a dead pig. <strong className="text-ink">Nothing is
             ever lost though</strong> — log a single place and you&apos;re straight back to
             whatever you&apos;d earned, however far you fell.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="font-display text-sm font-extrabold">sties</h3>
+          <p className="text-sm text-ink-soft">
+            The farm is made of sties, and a sty is a set of friends. You can be in more
+            than one, and your feed and map only ever show the places logged by the sties
+            you&apos;re in. Each one picks its own ground and its own hut.
+          </p>
+          <p className="text-sm text-ink-soft">
+            Every sty keeps its <strong className="text-ink">own verdict</strong>. A small
+            sty crowns its own pig rather than being permanently outvoted by a big one, so
+            the same person can be on the throne in one and in the enclosure in another.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="font-display text-sm font-extrabold">the throne and the enclosure</h3>
+          <p className="text-sm text-ink-soft">
+            Both are decided by the sty, not by you, and neither can be farmed by logging
+            more. What counts is your <strong className="text-ink">OG places</strong> — the
+            ones you were first to put on the map — and what everyone else made of them.
+          </p>
+          <div className="flex items-start gap-3">
+            <OinkPig size={38} active />
+            <p className="flex-1 text-sm text-ink-soft">
+              <strong className="text-ink">the throne</strong> — whoever&apos;s OG places have
+              collected the most oinks. The sty saying your taste can be trusted.
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <ShamePig size={38} active />
+            <p className="flex-1 text-sm text-ink-soft">
+              <strong className="text-ink">the shame enclosure</strong> — whoever&apos;s have
+              collected the most shames. Penned in, with a placard.
+            </p>
+          </div>
+          <p className="text-sm text-ink-soft">
+            Nobody is crowned and caged at once — the throne wins. Nobody wins either on
+            nothing: with no oinks and no shames going around, both stand empty.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="font-display text-sm font-extrabold">the graveyard</h3>
+          <p className="text-sm text-ink-soft">
+            Pigs that have starved all the way down get buried at the bottom of the sty,
+            behind the railings, with a headstone each. It isn&apos;t a punishment and it
+            isn&apos;t permanent — log a single place and you climb straight back out to
+            whatever tier you&apos;d earned.
           </p>
         </section>
 

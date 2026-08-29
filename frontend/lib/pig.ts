@@ -34,10 +34,10 @@ export const TIER_LABELS: Record<FatnessTier, string> = {
   humungous: "Humungous",
 };
 
-/** How long idleness costs a tier. A fortnight — long enough that a quiet
- *  couple of weeks isn't punished, short enough that the pig means something.
+/** How long idleness costs a tier. A month — long enough that a quiet spell
+ *  isn't punished, short enough that the pig still means something.
  *  Nothing is lost either way: a single log puts the whole ladder back. */
-const DECAY_MS = 14 * 24 * 60 * 60 * 1000;
+const DECAY_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Tier from count alone, before any decay is applied. */
 export function baseTier(placesLogged: number): FatnessTier {
@@ -57,7 +57,7 @@ export function idlePeriods(lastLoggedAt?: string | null, now: number = Date.now
 }
 
 /**
- * The pig you actually get: earned tier, minus one step for every fortnight gone
+ * The pig you actually get: earned tier, minus one step for every month gone
  * by without logging anywhere, floored at the dead pig.
  *
  * Someone who has never logged anything doesn't rot — they start slim and stay

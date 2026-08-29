@@ -388,9 +388,9 @@ lit from above and creased underneath so it hangs rather than floats:
 | 20+ | Hunky | the ladder turns a corner — pecs and abs, not bulk |
 
 **Pigs starve.** The tier you get is the tier you earned minus one step for every
-**fortnight** without logging anywhere, floored at the Dead Pig. A fortnight, not
-a week: a friend group can easily go a month without eating out, and weekly decay
-killed a maxed-out pig in four. Somebody who has never logged doesn't rot — they
+**month** without logging anywhere, floored at the Dead Pig. A month, not a week
+or a fortnight: a friend group can easily go weeks without eating out together,
+and faster decay killed a maxed-out pig before anyone noticed it was hungry. Somebody who has never logged doesn't rot — they
 sit at Slim until the first log starts the clock. Nothing has to be earned twice:
 one log anywhere restores the earned tier.
 

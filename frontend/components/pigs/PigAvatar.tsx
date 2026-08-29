@@ -43,7 +43,7 @@ import { companion, companionTransform } from "./Companion";
 type Props = {
   config?: PigConfig | null;
   placesLogged?: number;
-  /** Last logged place; the pig drops a tier per idle fortnight from here. */
+  /** Last logged place; the pig drops a tier per idle month from here. */
   lastLoggedAt?: string | null;
   size?: number;
   variant?: "face" | "full";
