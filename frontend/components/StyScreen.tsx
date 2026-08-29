@@ -30,6 +30,7 @@ import { Hut, type HutKind } from "@/components/pigs/Huts";
 import { GROUNDS, GROUND_LABELS, GroundSwatch, ground, type GroundKind } from "@/components/pigs/Grounds";
 import { HUTS, HUT_LABELS } from "@/components/pigs/Huts";
 import {
+  GRAVEYARD_HEADROOM,
   Grave,
   GraveyardGround,
   STY_PIG,
@@ -60,7 +61,17 @@ const TOP_GAP = 250;
 const GRAVE_COLS = 4;
 const GRAVE_W = 128;
 const GRAVE_H = 172;
-const GRAVE_PAD = 40;
+// The plot sits close around the graves. Wider at the foot than the head: the
+// near run of railings stands on the bottom edge and rises into the plot, and
+// anything less than its height there would put the front row's feet through
+// the fence. The back run rises outside the plot, so the head needs nothing.
+const GRAVE_PAD_X = 12;
+const GRAVE_PAD_TOP = 10;
+const GRAVE_PAD_BOTTOM = 34;
+
+// Clearance between the crowd and the graveyard: enough for the gateway, which
+// stands above the plot, plus room for a low-hanging pig in the last row.
+const GRAVE_GAP = GRAVEYARD_HEADROOM + 40;
 
 /**
  * Whoever this sty's verdict picks out, by the widest margin, for each end of
@@ -218,9 +229,9 @@ export default function StyScreen({
 
     const graveCols = Math.min(GRAVE_COLS, Math.max(buried.length, 1));
     const graveRows = Math.ceil(buried.length / GRAVE_COLS);
-    const plotW = graveCols * GRAVE_W + GRAVE_PAD * 2;
-    const plotH = graveRows * GRAVE_H + GRAVE_PAD * 2;
-    const graveBand = buried.length ? plotH + 60 : 0;
+    const plotW = graveCols * GRAVE_W + GRAVE_PAD_X * 2;
+    const plotH = graveRows * GRAVE_H + GRAVE_PAD_TOP + GRAVE_PAD_BOTTOM;
+    const graveBand = buried.length ? GRAVE_GAP + plotH + 40 : 0;
 
     const width = Math.max(base.width, TOP_GAP + 240, plotW + 40);
     const dx = (width - base.width) / 2;
@@ -232,7 +243,7 @@ export default function StyScreen({
 
     let graveyard: Plot | null = null;
     if (buried.length) {
-      const plotTop = top + base.height + 30;
+      const plotTop = top + base.height + GRAVE_GAP;
       graveyard = { x: (width - plotW) / 2, y: plotTop, width: plotW, height: plotH };
       buried.forEach((user, i) => {
         const col = i % GRAVE_COLS;
@@ -242,7 +253,7 @@ export default function StyScreen({
         spots.push({
           user,
           x: (width - rowW) / 2 + col * GRAVE_W + GRAVE_W / 2,
-          y: plotTop + GRAVE_PAD + row * GRAVE_H + GRAVE_H / 2 + 14,
+          y: plotTop + GRAVE_PAD_TOP + row * GRAVE_H + GRAVE_H / 2,
           landmark: "grave",
         });
       });

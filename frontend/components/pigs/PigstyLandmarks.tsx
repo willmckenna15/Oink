@@ -229,22 +229,36 @@ function ironPost(x: number, baseY: number, height: number) {
  * the exception by design — it is the front of the enclosure, and the graves in
  * the last row stand over it.
  */
+const RISE = 28; // plain railing bars
+const POST = 42; // corner and gate posts
+
+// The gateway: a banner slung between two posts, an arch springing off it.
+const BANNER_H = 24;
+const BANNER_LIFT = 2;
+const ARCH_RISE = 46;
+const CROWN = 20;
+const SPRING = -POST - BANNER_LIFT - BANNER_H;
+const APEX = SPRING - ARCH_RISE;
+
+/**
+ * How far the gateway stands above the plot rectangle. The arch and its finial
+ * are drawn outside the plot, so whatever lays the sty out has to keep this
+ * much clear above the graveyard or the crowd ends up standing on the signage.
+ */
+export const GRAVEYARD_HEADROOM = -(APEX - CROWN) + 12;
+
 export function GraveyardGround({ width, height }: { width: number; height: number }) {
-  const RISE = 28; // plain railing bars
-  const POST = 42; // corner and gate posts
+  const HEAD = GRAVEYARD_HEADROOM;
 
-  // The gateway: a banner slung between two posts, an arch springing off it.
-  const BANNER_H = 24;
-  const BANNER_LIFT = 2;
-  const ARCH_RISE = 46;
-  const CROWN = 20;
-  const SPRING = -POST - BANNER_LIFT - BANNER_H;
-  const APEX = SPRING - ARCH_RISE;
-  const HEAD = -(APEX - CROWN) + 12; // headroom the viewBox needs above the plot
-
-  const GATE = Math.min(250, Math.max(150, width * 0.44));
-  const gx0 = (width - GATE) / 2;
-  const gx1 = (width + GATE) / 2;
+  // The gateway has to be wide enough to carry the name, which on a plot with
+  // only a grave or two leaves no back run worth drawing and stacks the gate
+  // posts on top of the corner ones. Below that width the gateway simply
+  // becomes the whole back wall.
+  const wanted = Math.min(250, Math.max(150, width * 0.44));
+  const fullGate = width - wanted < 80;
+  const GATE = fullGate ? width : wanted;
+  const gx0 = fullGate ? 0 : (width - GATE) / 2;
+  const gx1 = fullGate ? width : (width + GATE) / 2;
   const mid = width / 2;
 
   /** Positions along a run. Spaced by count rather than at fixed offsets, so
@@ -302,7 +316,7 @@ export function GraveyardGround({ width, height }: { width: number; height: numb
           ))}
 
           {/* The back run, in two halves either side of the gateway. */}
-          {([[0, gx0], [gx1, width]] as const).map(([x0, x1]) => (
+          {(fullGate ? [] : ([[0, gx0], [gx1, width]] as const)).map(([x0, x1]) => (
             <g key={`back-${x0}`}>
               <path d={hRail(x0, x1, -RISE + 5)} />
               <path d={hRail(x0, x1, -10)} />
@@ -312,7 +326,10 @@ export function GraveyardGround({ width, height }: { width: number; height: numb
             </g>
           ))}
 
-          {[[0, 0], [width, 0], [0, height], [width, height]].map(([x, y]) => (
+          {(fullGate
+            ? [[0, height], [width, height]]
+            : [[0, 0], [width, 0], [0, height], [width, height]]
+          ).map(([x, y]) => (
             <path key={`corner-${x}-${y}`} d={ironPost(x, y, POST)} />
           ))}
           <path d={ironPost(gx0, 0, POST)} />
@@ -328,7 +345,12 @@ export function GraveyardGround({ width, height }: { width: number; height: numb
           y={SPRING + 17}
           textAnchor="middle"
           fill="#FFFDF6"
-          style={{ font: "800 15px var(--font-display, system-ui)", letterSpacing: "0.16em" }}
+          style={{
+            // On a narrow plot the plate is only as wide as the graveyard, so
+            // the name has to come down to meet it rather than run off the end.
+            font: `800 ${GATE < 190 ? 12 : 15}px var(--font-display, system-ui)`,
+            letterSpacing: GATE < 190 ? "0.08em" : "0.16em",
+          }}
         >
           THE GRAVEYARD
         </text>
