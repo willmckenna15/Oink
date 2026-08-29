@@ -13,7 +13,7 @@ from . import config
 # Aliased: `routers.places` below would otherwise shadow the lookup module.
 from . import places as place_lookup
 from .db import engine, init_db
-from .routers import auth, feed, places, restaurants, social, sties, users
+from .routers import auth, feed, places, restaurants, safety, social, sties, users
 
 logger = logging.getLogger("oink")
 
@@ -40,6 +40,7 @@ for router in (
     feed.router,
     places.router,
     sties.router,
+    safety.router,
 ):
     app.include_router(router, prefix=API_PREFIX)
 

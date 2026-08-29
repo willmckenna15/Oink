@@ -53,6 +53,33 @@ Four friends, all with password **`oink123`**: `defne`, `mert`, `zeynep`, `ali`.
 
 Reseed any time with `./.venv/bin/python seed.py --reset`.
 
+### Tests
+
+```bash
+cd backend
+./.venv/bin/python -m pytest tests/ -q
+```
+
+Covers sign-in and session revocation, password reset and email verification,
+blocking and reporting, account deletion, sty membership, and the feed. Each
+test builds its own throwaway SQLite database, so they can run in any order and
+leave nothing behind.
+
+### Account email
+
+Password reset and email verification need somewhere to send to. There is no
+provider wired up — `MAIL_BACKEND` defaults to `console`, which writes the mail
+to the log. That's right for local development and **wrong in production**: it
+puts reset links in your server logs, and the app logs an error saying so if it
+finds itself doing that outside localhost. Implement the provider call in
+`app/mail.py`; nothing upstream needs to change.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MAIL_BACKEND` | `console` | Delivery mechanism |
+| `MAIL_FROM` | `no-reply@oink.local` | Sender address |
+| `FRONTEND_BASE_URL` | `http://localhost:3000` | Where reset/verify links point |
+
 ### Deploying to Vercel + Supabase
 
 `vercel.json` declares two [Vercel services](https://vercel.com/docs/services) —

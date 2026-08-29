@@ -2,6 +2,8 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
 pydantic==2.10.4
+# EmailStr on the signup/reset schemas.
+email-validator==2.2.0
 PyJWT==2.10.1
 bcrypt==4.2.1
 python-multipart==0.0.20
@@ -9,3 +11,6 @@ httpx==0.28.1
 python-dotenv==1.0.1
 # Only used when DATABASE_URL points at Postgres (Supabase); SQLite needs nothing.
 psycopg2-binary==2.9.12
+
+# Tests (see tests/). Not needed to run the app.
+pytest==8.3.4

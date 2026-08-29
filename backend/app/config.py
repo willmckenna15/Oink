@@ -28,6 +28,16 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 30  # spec §7: flat 30-day expiry, no refresh dance in v1
 COOKIE_NAME = "oink_session"
 
+# --- Account email --------------------------------------------------------
+# 'console' writes mail to the log. Anything else needs an implementation in
+# mail.py. FRONTEND_BASE_URL is where reset/verify links point — the app the
+# user is looking at, which is not the API.
+MAIL_BACKEND = os.getenv("MAIL_BACKEND", "console")
+MAIL_FROM = os.getenv("MAIL_FROM", "no-reply@oink.local")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+RESET_TOKEN_HOURS = 2
+VERIFY_TOKEN_HOURS = 48
+
 # --- Image storage --------------------------------------------------------
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads")))
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")

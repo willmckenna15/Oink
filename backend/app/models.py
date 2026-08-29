@@ -21,6 +21,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -49,6 +50,14 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Optional so existing accounts keep working; required for new signups, and
+    # the only route back in if somebody forgets their password.
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    email_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Bumped to cut every issued token loose at once: a password change, a
+    # reset, or signing out everywhere. Tokens carry the value they were minted
+    # with and stop validating as soon as it moves.
+    session_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     # {color, hat, accessory, background} — see spec §9.1
     pig_avatar_config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
@@ -236,3 +245,66 @@ class StyJoinRequest(Base):
     requested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     decided_by: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+
+
+# --- Account recovery, verification, and the safety tools --------------------
+
+TOKEN_PURPOSES = ("password_reset", "email_verify")
+
+
+class AuthToken(Base):
+    """A single-use, expiring token for password reset or email verification.
+
+    Only the hash is stored. A leaked database then yields nothing usable — the
+    same reasoning as password hashing. The plaintext exists only in the link
+    that was sent.
+    """
+
+    __tablename__ = "auth_tokens"
+    __table_args__ = (CheckConstraint(f"purpose in {TOKEN_PURPOSES}", name="ck_auth_token_purpose"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    purpose: Mapped[str] = mapped_column(String(20), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+
+
+REPORT_TARGETS = ("recommendation", "reply", "restaurant", "user")
+REPORT_STATES = ("open", "actioned", "dismissed")
+
+
+class Report(Base):
+    """Somebody flagging content. Deliberately generic over target type — what
+    an admin needs is one queue, not four."""
+
+    __tablename__ = "reports"
+    __table_args__ = (
+        CheckConstraint(f"target_type in {REPORT_TARGETS}", name="ck_report_target"),
+        CheckConstraint(f"state in {REPORT_STATES}", name="ck_report_state"),
+        UniqueConstraint("reporter_id", "target_type", "target_id", name="uq_report_once"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    reporter_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(String(12), nullable=False, default="open", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class Block(Base):
+    """One user muting another. A block hides content both ways, so neither has
+    to see the other, and it never deletes anything."""
+
+    __tablename__ = "blocks"
+
+    blocker_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), primary_key=True)
+    blocked_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)

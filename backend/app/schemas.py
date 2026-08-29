@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 Kind = Literal["restaurant", "bar", "cafe"]
 Budget = Literal["$", "$$", "$$$", "$$$$"]
@@ -40,6 +40,9 @@ class SignupRequest(BaseModel):
     username: str = Field(min_length=2, max_length=32)
     password: str = Field(min_length=6, max_length=200)
     display_name: str = Field(min_length=1, max_length=60)
+    # Optional at the schema level so existing clients keep working, but it is
+    # the only way back into an account, so the UI should always ask for it.
+    email: Optional[EmailStr] = None
 
     @field_validator("username")
     @classmethod
@@ -293,3 +296,62 @@ class ParseLinkResponse(BaseModel):
     # How much we managed to resolve, so the UI can say what's still needed
     resolved: bool = False
     source: Literal["google_places", "url_parse", "none"] = "none"
+
+
+# --- Account recovery, safety, and the admin queue --------------------------
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=6, max_length=200)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=200)
+
+
+class SetEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class DeleteAccountRequest(BaseModel):
+    """Deleting is irreversible, so it costs a password rather than a tap."""
+
+    password: str
+
+
+class ReportCreate(BaseModel):
+    target_type: Literal["recommendation", "reply", "restaurant", "user"]
+    target_id: str
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+class ReportResolve(BaseModel):
+    state: Literal["actioned", "dismissed"]
+    note: Optional[str] = Field(default=None, max_length=1000)
+
+
+class ReportOut(BaseModel):
+    id: str
+    reporter: UserPublic
+    target_type: str
+    target_id: str
+    reason: str
+    state: str
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+    resolution_note: Optional[str] = None
+
+
+class BlockOut(BaseModel):
+    user: UserPublic
+    created_at: datetime

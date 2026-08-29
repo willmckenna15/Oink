@@ -27,13 +27,19 @@ def get_current_user(
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not signed in")
 
-    user_id = security.decode_token(token)
-    if not user_id:
+    decoded = security.decode_token(token)
+    if not decoded:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
+    user_id, session_version = decoded
 
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer exists")
+
+    # A password change, a reset, or signing out everywhere bumps the version
+    # on the row, which strands every token minted before it.
+    if session_version != (user.session_version or 1):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session ended")
     return user
 
 

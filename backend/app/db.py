@@ -39,6 +39,7 @@ def init_db():
 
     Base.metadata.create_all(bind=engine)
     _add_missing_columns()
+    _backfill_defaults()
     _seed_the_og_sty()
     _ensure_unique_place_ids()
 
@@ -98,6 +99,21 @@ def _add_missing_columns() -> None:
                 ddl = column.type.compile(dialect=engine.dialect)
                 conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {ddl}'))
                 logger.info("Added column %s.%s", table.name, column.name)
+
+
+def _backfill_defaults() -> None:
+    """Give newly added columns a value on rows that predate them.
+
+    `ALTER TABLE ... ADD COLUMN` leaves existing rows NULL even where the model
+    declares a default, because the default is applied by the ORM on insert.
+    `session_version` is read on every single request, so it wants a real value
+    rather than a NULL that every caller has to remember to coalesce.
+    """
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE users SET session_version = 1 WHERE session_version IS NULL"))
+    except Exception:  # noqa: BLE001 — column not there yet on a fresh create
+        logger.debug("session_version backfill skipped", exc_info=True)
 
 
 # Whoever founded the place. These are real accounts on the deployed app; on a
