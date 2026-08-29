@@ -24,13 +24,32 @@ import { ShamePig } from "@/components/pigs/ReactionPigs";
 // with ssr:false.
 import "leaflet/dist/leaflet.css";
 
-// Voyager rather than Positron: Positron is so pale that roads read as
-// white-on-white against the app's warm ground, which looks like a map that
-// failed to load. Voyager keeps the clean, low-clutter styling but with enough
-// contrast to actually navigate by.
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+// Carto moved their free raster basemaps behind an API key: the tiles still
+// return 200, but every one comes back stamped "API KEY REQUIRED" across the
+// middle, so there is nothing to configure our way out of. Esri's street
+// basemap is the closest keyless match to the Voyager styling this was built
+// around — clean and low-clutter, but warm and with enough contrast to
+// navigate by, where a grey canvas washes out against the app's own ground.
+//
+// Set NEXT_PUBLIC_CARTO_API_KEY to go back to Voyager, or point
+// NEXT_PUBLIC_MAP_TILE_URL / _ATTRIBUTION at any other provider.
+const CARTO_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY;
+
+const TILE_URL =
+  process.env.NEXT_PUBLIC_MAP_TILE_URL ||
+  (CARTO_KEY
+    ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${CARTO_KEY}`
+    : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}");
+
 const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ||
+  (CARTO_KEY
+    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    : 'Tiles &copy; <a href="https://www.esri.com">Esri</a>');
+
+// Esri serves this basemap to zoom 19; past that Leaflet upscales the last
+// real tile rather than requesting one that comes back blank.
+const TILE_MAX_NATIVE_ZOOM = CARTO_KEY ? 20 : 19;
 
 // Pins closer together than this (screen pixels at the current zoom) collapse
 // into one cluster, so faces stop stacking into an unreadable pile.
@@ -286,7 +305,11 @@ export default function MapView({
       });
       // No zoom control — pinch and double-tap are the gestures people actually
       // use on a phone, and the buttons only crowd the corner.
-      L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(map);
+      L.tileLayer(TILE_URL, {
+        attribution: TILE_ATTRIBUTION,
+        maxZoom: 20,
+        maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
+      }).addTo(map);
 
       map.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         const { pickMode: active, onPick: pick } = pickHandlers.current;

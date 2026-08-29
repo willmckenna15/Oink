@@ -21,6 +21,7 @@ const PLUM = "#914E56";
 const BLOOD = "#8E1B12";
 const TIMBER = "#8A6134";
 const TIMBER_DARK = "#6A4826";
+const IRON = "#171018";
 
 /**
  * Every pig in the sty is drawn at the same size, landmark or not — an occupant
@@ -196,24 +197,142 @@ function hashTilt(id: string): number {
   return ((Math.abs(h) % 900) / 100 - 4.5);
 }
 
-/** The graveyard's ground: a dark plot behind however many graves there are. */
-export function GraveyardGround({ width, height }: { width: number; height: number }) {
+/** A railing bar: a plain shaft under a lance point. */
+function ironBar(x: number, baseY: number, height: number, w = 3) {
+  const half = w / 2;
+  const top = baseY - height;
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute rounded-[48px] border-[3px] border-ink"
-      style={{
-        width,
-        height,
-        background: "linear-gradient(#6E7A55, #5C6647)",
-      }}
-    >
-      <p
-        className="absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap font-display text-lg font-extrabold uppercase tracking-[0.14em]"
-        style={{ color: "#D9D2C2" }}
+    `M${x - half} ${baseY} L${x - half} ${top} L${x + half} ${top} L${x + half} ${baseY} Z ` +
+    `M${x} ${top - 10} L${x + 3.4} ${top - 1} L${x} ${top + 4} L${x - 3.4} ${top - 1} Z`
+  );
+}
+
+/** A corner or gate post: heavier, and capped with a cross. */
+function ironPost(x: number, baseY: number, height: number) {
+  const half = 3.6;
+  const top = baseY - height;
+  return (
+    `M${x - half} ${baseY} L${x - half} ${top} L${x + half} ${top} L${x + half} ${baseY} Z ` +
+    `M${x - 2} ${top - 17} L${x + 2} ${top - 17} L${x + 2} ${top + 2} L${x - 2} ${top + 2} Z ` +
+    `M${x - 7} ${top - 12.5} L${x + 7} ${top - 12.5} L${x + 7} ${top - 9} L${x - 7} ${top - 9} Z`
+  );
+}
+
+/**
+ * The graveyard's ground — except it hasn't got one any more. Whatever floor
+ * the sty is standing on runs straight through the plot, so the boundary has to
+ * be drawn rather than filled: black railings under spear points, with a gated
+ * arch at the back carrying the name.
+ *
+ * Everything is drawn outside the plot rectangle or standing on its edge, so
+ * the graves laid out inside are never behind their own fence. The near run is
+ * the exception by design — it is the front of the enclosure, and the graves in
+ * the last row stand over it.
+ */
+export function GraveyardGround({ width, height }: { width: number; height: number }) {
+  const RISE = 28; // plain railing bars
+  const POST = 42; // corner and gate posts
+
+  // The gateway: a banner slung between two posts, an arch springing off it.
+  const BANNER_H = 24;
+  const BANNER_LIFT = 2;
+  const ARCH_RISE = 46;
+  const CROWN = 20;
+  const SPRING = -POST - BANNER_LIFT - BANNER_H;
+  const APEX = SPRING - ARCH_RISE;
+  const HEAD = -(APEX - CROWN) + 12; // headroom the viewBox needs above the plot
+
+  const GATE = Math.min(250, Math.max(150, width * 0.44));
+  const gx0 = (width - GATE) / 2;
+  const gx1 = (width + GATE) / 2;
+  const mid = width / 2;
+
+  /** Positions along a run. Spaced by count rather than at fixed offsets, so
+   *  the railing keeps its rhythm however many graves the plot has to hold. */
+  const spread = (from: number, to: number, gap: number) => {
+    const n = Math.max(1, Math.round((to - from) / gap));
+    return Array.from({ length: n - 1 }, (_, i) => from + ((i + 1) * (to - from)) / n);
+  };
+  const hRail = (x0: number, x1: number, y: number, t = 3.5) =>
+    `M${x0} ${y} L${x1} ${y} L${x1} ${y + t} L${x0} ${y + t} Z`;
+  const vRail = (x: number, y0: number, y1: number, t = 3.5) =>
+    `M${x - t / 2} ${y0} L${x + t / 2} ${y0} L${x + t / 2} ${y1} L${x - t / 2} ${y1} Z`;
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute" style={{ width, height }}>
+      <svg
+        width={width}
+        height={height + HEAD}
+        viewBox={`0 ${-HEAD} ${width} ${height + HEAD}`}
+        className="absolute left-0"
+        style={{ top: -HEAD, overflow: "visible" }}
       >
-        The Graveyard
-      </p>
+        {/* The arch first, so the banner and posts sit over its feet. */}
+        <g fill="none" stroke={IRON} strokeLinecap="round">
+          <path
+            d={`M${gx0} ${SPRING} Q${gx0 + GATE * 0.16} ${APEX + 14} ${mid} ${APEX} Q${gx1 - GATE * 0.16} ${APEX + 14} ${gx1} ${SPRING}`}
+            strokeWidth="4.5"
+          />
+          <path d={`M${mid} ${APEX} L${mid} ${APEX - CROWN}`} strokeWidth="3.5" />
+        </g>
+        <circle cx={mid} cy={APEX - CROWN - 4} r="4.5" fill={IRON} />
+
+        <g fill={IRON}>
+          {/* The side runs. They recede away from the viewer, so they carry
+              rails and the occasional post rather than a full set of spears —
+              a run of finials seen end-on just reads as a smear. */}
+          {[0, width].map((x) => (
+            <g key={`side-${x}`}>
+              <path d={vRail(x, -RISE + 5, height - RISE + 5)} />
+              <path d={vRail(x, -10, height - 10)} />
+              {spread(0, height, 34).map((y) => (
+                <path key={y} d={ironBar(x, y, RISE)} />
+              ))}
+              {spread(0, height, 120).map((y) => (
+                <path key={`p${y}`} d={ironPost(x, y, POST - 6)} />
+              ))}
+            </g>
+          ))}
+
+          {/* The near run, unbroken. */}
+          <path d={hRail(0, width, height - RISE + 5)} />
+          <path d={hRail(0, width, height - 10)} />
+          {spread(0, width, 16).map((x) => (
+            <path key={`near-${x}`} d={ironBar(x, height, RISE)} />
+          ))}
+
+          {/* The back run, in two halves either side of the gateway. */}
+          {([[0, gx0], [gx1, width]] as const).map(([x0, x1]) => (
+            <g key={`back-${x0}`}>
+              <path d={hRail(x0, x1, -RISE + 5)} />
+              <path d={hRail(x0, x1, -10)} />
+              {spread(x0, x1, 16).map((x) => (
+                <path key={x} d={ironBar(x, 0, RISE)} />
+              ))}
+            </g>
+          ))}
+
+          {[[0, 0], [width, 0], [0, height], [width, height]].map(([x, y]) => (
+            <path key={`corner-${x}-${y}`} d={ironPost(x, y, POST)} />
+          ))}
+          <path d={ironPost(gx0, 0, POST)} />
+          <path d={ironPost(gx1, 0, POST)} />
+        </g>
+
+        {/* The name, on a plate slung between the gate posts. Reversed out of
+            the iron rather than painted on the floor, so it stays legible
+            whichever ground the sty happens to be standing on. */}
+        <rect x={gx0} y={SPRING} width={GATE} height={BANNER_H} rx="3" fill={IRON} />
+        <text
+          x={mid}
+          y={SPRING + 17}
+          textAnchor="middle"
+          fill="#FFFDF6"
+          style={{ font: "800 15px var(--font-display, system-ui)", letterSpacing: "0.16em" }}
+        >
+          THE GRAVEYARD
+        </text>
+      </svg>
     </div>
   );
 }
